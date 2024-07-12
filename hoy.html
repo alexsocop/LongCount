@@ -1,0 +1,63 @@
+<!DOCTYPE HTML>
+<html>
+  <!-- This is the desktop version to get the current Mayan long count, written by MY Sia.
+  (1) Download this html file (button is somewhere in the top right corner) and save it in the desired location (e.g., your desktop).
+  (2) Right click on the downloaded file (i.e., "hoy.html") and choose to always open the file using your favourite web browser (e.g., Google Chrome).
+  (3) You can double click it from now on. Feel free to distribute this file and spread the awesomeness of this ancient culture. :) -->
+<head>
+  <meta charset="UTF-8">
+  <style>
+    p {
+      text-align: center;
+      font-size: 60px;
+      margin-top: 0px;
+    }
+  </style>
+</head>
+
+<body>
+  <p><b>Today's long count: </b></p>
+  <p id="longcount"></p>
+  <p id="cholqijfull"></p>
+
+  <script>
+    //Get current date and Baktun 13 date
+    const date1 = new Date("2012-12-21");
+    date1.setHours(0); //Default hour is at 08:00, set it to 00:00
+    const date2 = new Date();
+    
+    //Calculate the difference between current date and Baktun 13
+    let Diff_In_Time = date2.getTime() - date1.getTime();
+    let Diff_In_Days = Math.floor(Diff_In_Time / (1000 * 3600 * 24));
+    
+    const baktun = 13;
+    let katun = Math.floor(Diff_In_Days / 7200);
+    let tun = Math.floor((Diff_In_Days - (katun * 7200)) / 360);
+    let winal = Math.floor((Diff_In_Days - (katun * 7200) - (tun * 360)) / 20);
+    let kin = Diff_In_Days % 20;
+    
+    document.getElementById("longcount").innerHTML = baktun + "." + katun + "." + tun + "." + winal + "." + kin;
+    
+    //Get Cholq'ij full name and number
+    const cholqij_list = ["Ajpu'",
+    	"Imox", "Iq'", "Aq'ab'al", "K'at", 
+    	"Kan", "Kame", "Kej", "Q'anil",
+    	"Toj", "T'zi'", "B'atz'", "E",
+    	"Aj", "I'x", "Tz'ikin", "Ajmaq",
+    	"No'j", "Tijax", "Kawoq"];
+    
+    let cholqij_day = cholqij_list[kin];
+    
+    //Calculate cholqij number
+    const num = 4; //This is the cholqij number of Baktun 13
+    x = Math.floor(Diff_In_Days / 13);
+    y = 13 * x;
+    cholqij_num = Diff_In_Days - y + num;
+    if (cholqij_num > 13) {
+      cholqij_num = cholqij_num - 13;
+    }
+    
+    document.getElementById("cholqijfull").innerHTML = cholqij_num + " " + cholqij_day + " (K'iche')";
+  </script>
+</body>
+</html>
