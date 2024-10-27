@@ -1,63 +1,79 @@
 <!DOCTYPE HTML>
 <html>
-  <!-- This is the desktop version to get the current Mayan long count, written by MY Sia.
+  <!-- This is the desktop version to get the current Mayan long count, written by MY Sia and Alex Socop.
   (1) Download this html file (button is somewhere in the top right corner) and save it in the desired location (e.g., your desktop).
-  (2) Right click on the downloaded file (i.e., "hoy.html") and choose to always open the file using your favourite web browser (e.g., Google Chrome).
+  (2) Right click on the downloaded file (i.e., "hoy.html") and choose to always open the file using your favourite web browser (e.g., Mozilla Firefox, Google Chrome).
   (3) You can double click it from now on. Feel free to distribute this file and spread the awesomeness of this ancient culture. :) -->
 <head>
   <meta charset="UTF-8">
   <style>
     p {
       text-align: center;
-      font-size: 60px;
+      font-size: 45px;
       margin-top: 0px;
     }
   </style>
 </head>
 
 <body>
-  <p><b>Today's long count: </b></p>
+  <p><b>Diary Format:</b></p>
+  <p id="diary"></p>
+  <p><b>Today's Long Count:</b></p>
   <p id="longcount"></p>
-  <p id="cholqijfull"></p>
+  <p><b>Today's Cholq'ij (Tzolk'in) Day (K'iche' name):</b></p>
+  <p id="cholqij"></p>
+  <p><b>Today's Haab' Day (Yucatec name):</b></p>
+  <p id="haab"></p>
+  <p><b>Today's Lord of the Night:</b></p>
+  <p id="lord"></p>
 
-  <script>
-    //Get current date and Baktun 13 date
-    const date1 = new Date("2012-12-21");
-    date1.setHours(0); //Default hour is at 08:00, set it to 00:00
-    const date2 = new Date();
-    
-    //Calculate the difference between current date and Baktun 13
-    let Diff_In_Time = date2.getTime() - date1.getTime();
-    let Diff_In_Days = Math.floor(Diff_In_Time / (1000 * 3600 * 24));
-    
+<script>
+    // Get current date and Baktun 13 date
+    const baktun13Date = new Date("2012-12-21");
+    baktun13Date.setHours(0);
+    const today = new Date();
+
+    // Calculate the difference between current date and Baktun 13
+    let diffDays = Math.floor((today - baktun13Date) / (1000 * 60 * 60 * 24));
+
+    // Calculate Long Count
     const baktun = 13;
-    let katun = Math.floor(Diff_In_Days / 7200);
-    let tun = Math.floor((Diff_In_Days - (katun * 7200)) / 360);
-    let winal = Math.floor((Diff_In_Days - (katun * 7200) - (tun * 360)) / 20);
-    let kin = Diff_In_Days % 20;
-    
-    document.getElementById("longcount").innerHTML = baktun + "." + katun + "." + tun + "." + winal + "." + kin;
-    
-    //Get Cholq'ij full name and number
-    const cholqij_list = ["Ajpu'",
-    	"Imox", "Iq'", "Aq'ab'al", "K'at", 
-    	"Kan", "Kame", "Kej", "Q'anil",
-    	"Toj", "T'zi'", "B'atz'", "E",
-    	"Aj", "I'x", "Tz'ikin", "Ajmaq",
-    	"No'j", "Tijax", "Kawoq"];
-    
-    let cholqij_day = cholqij_list[kin];
-    
-    //Calculate cholqij number
-    const num = 4; //This is the cholqij number of Baktun 13
-    x = Math.floor(Diff_In_Days / 13);
-    y = 13 * x;
-    cholqij_num = Diff_In_Days - y + num;
-    if (cholqij_num > 13) {
-      cholqij_num = cholqij_num - 13;
-    }
-    
-    document.getElementById("cholqijfull").innerHTML = cholqij_num + " " + cholqij_day + " (K'iche')";
+    const katun = Math.floor(diffDays / 7200);
+    const tun = Math.floor((diffDays % 7200) / 360);
+    const winal = Math.floor((diffDays % 360) / 20);
+    const kin = diffDays % 20;
+
+    // Long Count with names for display
+    const longCount = `${baktun} Bʼakʼtun, ${katun} Kʼatun, ${tun} Tun, ${winal} Winal, ${kin} Kin`;
+    document.getElementById("longcount").innerHTML = longCount;
+
+    // Long Count numbers only for diary format
+    const longCountNumbers = `${baktun}.${katun}.${tun}.${winal}.${kin}`;
+
+    // Calculate Cholq'ij (Tzolk'in)
+    const tzolkinNames = ["Ajpu'", "Imox", "Iq'", "Aq'ab'al", "K'at", "Kan", "Kame", "Kej", "Q'anil", "Toj", "T'zi'", "B'atz'", "E", "Aj", "I'x", "Tz'ikin", "Ajmaq", "No'j", "Tijax", "Kawoq"];
+    let cholqijDay = tzolkinNames[kin];
+    let cholqijNum = ((diffDays + 4) % 13) + 1;
+    const cholqijFull = `${cholqijNum} ${cholqijDay}`;
+    document.getElementById("cholqij").innerHTML = cholqijFull;
+
+    // Calculate Haab'
+    const haabMonths = ["Pop", "Wo", "Sip", "Sotz'", "Sek", "Xul", "Yaxk'in", "Mol", "Ch'en", "Yax", "Sak", "Keh", "Mak", "K'ank'in", "Muwan", "Pax", "K'ayab", "Kumk'u", "Wayeb'"];
+    let haabDay = (diffDays + 348) % 365;
+    let haabMonth = haabMonths[Math.floor(haabDay / 20)];
+    const haabFull = `${(haabDay % 20) + 1} ${haabMonth}`;
+    document.getElementById("haab").innerHTML = haabFull;
+
+    // Calculate Lord of the Night
+    let lordOfNight = `G${((diffDays - 1) % 9) + 1}`;
+    document.getElementById("lord").innerHTML = lordOfNight;
+
+    // Today's date in diary format
+    const formattedDate = today.toISOString().split('T')[0];
+    const diaryFormat = `${longCountNumbers} - ${cholqijFull} - ${haabFull} - ${lordOfNight} - ${formattedDate}`;
+    document.getElementById("diary").innerHTML = diaryFormat;
   </script>
+<p>Get the <a href="https://github.com/alexsocop/LongCount/blob/main/hoy.html" target="_blank">desktop version</a> of the long count.</p>
 </body>
 </html>
+
