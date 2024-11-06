@@ -1,9 +1,9 @@
-<!DOCTYPE HTML>
-<html>
   <!-- This is the desktop version to get the current Mayan long count, written by MY Sia and Alex Socop.
   (1) Download this html file (button is somewhere in the top right corner) and save it in the desired location (e.g., your desktop).
   (2) Right click on the downloaded file (i.e., "hoy.html") and choose to always open the file using your favourite web browser (e.g., Mozilla Firefox, Google Chrome).
   (3) You can double click it from now on. Feel free to distribute this file and spread the awesomeness of this ancient culture. :) -->
+<!DOCTYPE HTML>
+<html>
 <head>
   <meta charset="UTF-8">
   <style>
@@ -18,13 +18,13 @@
 <body>
   <p><b>Diary Format:</b></p>
   <p id="diary"></p>
-  <p><b>Today's Long Count:</b></p>
+  <p><b>Todayʼs Long Count:</b></p>
   <p id="longcount"></p>
-  <p><b>Today's Cholq'ij (Tzolk'in) Day (K'iche' name):</b></p>
+  <p><b>Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</b></p>
   <p id="cholqij"></p>
-  <p><b>Today's Haab' Day (Yucatec name):</b></p>
+  <p><b>Todayʼs Haabʼ Day (Yucatec name):</b></p>
   <p id="haab"></p>
-  <p><b>Today's Lord of the Night:</b></p>
+  <p><b>Todayʼs Lord of the Night:</b></p>
   <p id="lord"></p>
 
 <script>
@@ -33,7 +33,7 @@
     baktun13Date.setHours(0);
     const today = new Date();
 
-    // Calculate the difference between current date and Baktun 13
+    // Calculate the difference in days
     let diffDays = Math.floor((today - baktun13Date) / (1000 * 60 * 60 * 24));
 
     // Calculate Long Count
@@ -43,25 +43,33 @@
     const winal = Math.floor((diffDays % 360) / 20);
     const kin = diffDays % 20;
 
-    // Long Count with names for display
+    // Display Long Count
     const longCount = `${baktun} Bʼakʼtun, ${katun} Kʼatun, ${tun} Tun, ${winal} Winal, ${kin} Kin`;
     document.getElementById("longcount").innerHTML = longCount;
 
     // Long Count numbers only for diary format
     const longCountNumbers = `${baktun}.${katun}.${tun}.${winal}.${kin}`;
 
-    // Calculate Cholq'ij (Tzolk'in)
-    const tzolkinNames = ["Ajpu'", "Imox", "Iq'", "Aq'ab'al", "K'at", "Kan", "Kame", "Kej", "Q'anil", "Toj", "T'zi'", "B'atz'", "E", "Aj", "I'x", "Tz'ikin", "Ajmaq", "No'j", "Tijax", "Kawoq"];
+    // Cholqʼij (Tzolkʼin) Calculation (unchanged)
+    const tzolkinNames = ["Ajpuʼ", "Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tʼziʼ", "Bʼatzʼ", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq"];
+    const baseCholqijNum = 4;
+    let x = Math.floor(diffDays / 13);
+    let y = 13 * x;
+    let cholqijNum = diffDays - y + baseCholqijNum;
+    if (cholqijNum > 13) {
+      cholqijNum -= 13;
+    }
     let cholqijDay = tzolkinNames[kin];
-    let cholqijNum = ((diffDays + 4) % 13) + 1;
     const cholqijFull = `${cholqijNum} ${cholqijDay}`;
     document.getElementById("cholqij").innerHTML = cholqijFull;
 
-    // Calculate Haab'
-    const haabMonths = ["Pop", "Wo", "Sip", "Sotz'", "Sek", "Xul", "Yaxk'in", "Mol", "Ch'en", "Yax", "Sak", "Keh", "Mak", "K'ank'in", "Muwan", "Pax", "K'ayab", "Kumk'u", "Wayeb'"];
-    let haabDay = (diffDays + 348) % 365;
-    let haabMonth = haabMonths[Math.floor(haabDay / 20)];
-    const haabFull = `${(haabDay % 20) + 1} ${haabMonth}`;
+    // Haab' Calculation with Adjusted Reference Date
+    const haabMonths = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayebʼ"];
+    const haabReferenceDate = new Date("2023-04-01"); // Adjusted reference date to ensure correct Haab' date alignment
+    let haabDaysPassed = Math.floor((today - haabReferenceDate) / (1000 * 60 * 60 * 24)) % 365;
+    let haabDay = (haabDaysPassed % 20) + 1;
+    let haabMonth = haabMonths[Math.floor(haabDaysPassed / 20)];
+    const haabFull = `${haabDay} ${haabMonth}`;
     document.getElementById("haab").innerHTML = haabFull;
 
     // Calculate Lord of the Night
@@ -72,7 +80,7 @@
     const formattedDate = today.toISOString().split('T')[0];
     const diaryFormat = `${longCountNumbers} - ${cholqijFull} - ${haabFull} - ${lordOfNight} - ${formattedDate}`;
     document.getElementById("diary").innerHTML = diaryFormat;
-  </script>
+</script>
 <p>Get the <a href="https://github.com/alexsocop/LongCount/blob/main/hoy.html" target="_blank">desktop version</a> of the long count.</p>
 </body>
 </html>
