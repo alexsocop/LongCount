@@ -3,7 +3,7 @@ import datetime
 # Constants for the Haab' and Tzolk'in calendars
 HAAB_MONTHS = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayeb'"]
 
-TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼi'", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpu'"]
+TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpu'"]
 
 def gregorian_to_jdn(year, month, day):
     # Adjust year for astronomical year numbering (BCE to astronomical year)
@@ -130,8 +130,8 @@ if __name__ == "__main__":
                 print(f"\nDiary Format:\n{diary_format}")
                 print("\nLong Count:")
                 print(f"{long_count[0]} Bʼakʼtun, {long_count[1]} Kʼatun, {long_count[2]} Tun, {long_count[3]} Winal, {long_count[4]} Kin")
-                print(f"Tzolk'in: {tzolkin_number} {tzolkin_name}")
-                print(f"Haab': {haab_day} {haab_month}")
+                print(f"Tzolkʼin: {tzolkin_number} {tzolkin_name}")
+                print(f"Haabʼ: {haab_day} {haab_month}")
                 print(f"Lord of the Night: {lord_of_the_night}")
             else:
                 print("Invalid date entered. Please enter a valid date.")
