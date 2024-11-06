@@ -83,7 +83,7 @@ def is_leap_year(year):
 
 def show_welcome_message():
     today = datetime.date.today()
-    print(f"Welcome! Today's date is {today.strftime('%Y-%m-%d')}.\n")
+    print(f"Welcome! Todayʼs date is {today.strftime('%Y-%m-%d')}.\n")
     jdn_today = gregorian_to_jdn(today.year, today.month, today.day)
     long_count_today = jdn_to_maya_long_count(jdn_today)
     tzolkin_name_today, tzolkin_number_today = calculate_tzolkin(jdn_today)
