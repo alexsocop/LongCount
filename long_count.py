@@ -3,7 +3,7 @@ import datetime
 # Constants for the Haab' and Tzolk'in calendars
 HAAB_MONTHS = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayeb'"]
 
-TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpu'"]
+TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpuʼ"]
 
 def gregorian_to_jdn(year, month, day):
     # Adjust year for astronomical year numbering (BCE to astronomical year)
