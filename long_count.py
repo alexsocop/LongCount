@@ -1,9 +1,9 @@
 import datetime
 
 # Constants for the Haab' and Tzolk'in calendars
-HAAB_MONTHS = ["Pop", "Wo", "Sip", "Sotz'", "Sek", "Xul", "Yaxk'in", "Mol", "Ch'en", "Yax", "Sak", "Keh", "Mak", "K'ank'in", "Muwan", "Pax", "K'ayab", "Kumk'u", "Wayeb'"]
+HAAB_MONTHS = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayeb'"]
 
-TZOLKIN_NAMES = ["Imox", "Iq'", "Aq'ab'al", "K'at", "Kan", "Kame", "Kej", "Q'anil", "Toj", "Tz'i'", "B'atz'", "E", "Aj", "I'x", "Tz'ikin", "Ajmaq", "No'j", "Tijax", "Kawoq", "Ajpu'"]
+TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼi'", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpu'"]
 
 def gregorian_to_jdn(year, month, day):
     # Adjust year for astronomical year numbering (BCE to astronomical year)
@@ -99,13 +99,13 @@ def show_welcome_message():
     print(f"{long_count_today[0]} Bʼakʼtun, {long_count_today[1]} Kʼatun, {long_count_today[2]} Tun, {long_count_today[3]} Winal, {long_count_today[4]} Kin")
 
     # Cholq'ij (Tzolk'in) Day
-    print(f"\nToday's Cholq'ij (Tzolk'in) Day (K'iche' name):\n{tzolkin_number_today} {tzolkin_name_today}")
+    print(f"\nToday's Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):\n{tzolkin_number_today} {tzolkin_name_today}")
 
     # Haab' Day
-    print(f"\nToday's Haab' Day (Yucatec name):\n{haab_day_today} {haab_month_today}")
+    print(f"\nTodayʼs Haabʼ Day (Yucatec name):\n{haab_day_today} {haab_month_today}")
 
     # Lord of the Night
-    print(f"\nToday's Lord of the Night:\n{lord_of_the_night_today}")
+    print(f"\nTodayʼs Lord of the Night:\n{lord_of_the_night_today}")
 
     #print(f"Starting day of the long count: -3114-09-06")
 
