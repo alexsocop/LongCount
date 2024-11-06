@@ -95,11 +95,11 @@ def show_welcome_message():
     print(f"Diary Format:\n{diary_format}")
 
     # Descriptive Long Count
-    print("\nToday's Long Count:")
+    print("\nTodayʼs Long Count:")
     print(f"{long_count_today[0]} Bʼakʼtun, {long_count_today[1]} Kʼatun, {long_count_today[2]} Tun, {long_count_today[3]} Winal, {long_count_today[4]} Kin")
 
     # Cholq'ij (Tzolk'in) Day
-    print(f"\nToday's Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):\n{tzolkin_number_today} {tzolkin_name_today}")
+    print(f"\nTodayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):\n{tzolkin_number_today} {tzolkin_name_today}")
 
     # Haab' Day
     print(f"\nTodayʼs Haabʼ Day (Yucatec name):\n{haab_day_today} {haab_month_today}")
