@@ -1,144 +1,289 @@
+import argparse
 import datetime
+from typing import Tuple, Optional
 
-# Constants for the Haab' and Tzolk'in calendars
-HAAB_MONTHS = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayeb'"]
+# =========================
+# Configuration / Defaults
+# =========================
 
-TZOLKIN_NAMES = ["Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ", "Bʼatz'", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpuʼ"]
+MAYA_EPOCH_JDN = 584283  # default: GMT correlation
+HAAB_DAY_BASE = 0        # 0 => 0..19 (Wayebʼ 0..4) [DEFAULT], 1 => 1..20 (Wayebʼ 1..5)
 
-def gregorian_to_jdn(year, month, day):
-    # Adjust year for astronomical year numbering (BCE to astronomical year)
-    if year < 0:
-        year += 1  # Adjusting for astronomical year numbering; there is no year 0 in historical BCE/CE transition
+# Haabʼ and Tzolkʼin names
+HAAB_MONTHS = [
+    "Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax",
+    "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayebʼ"
+]
+TZOLKIN_NAMES = [
+    "Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ",
+    "Bʼatzʼ", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpuʼ"
+]
 
+# Epoch alignments for 0.0.0.0.0: 4 Ajpuʼ, 8 Kumkʼu, G9
+_TZ_START_NUMBER = 4
+_TZ_START_NAME_INDEX = TZOLKIN_NAMES.index("Ajpuʼ")  # 19
+_HAAB_START_ABS_INDEX = 17 * 20 + 8  # 8 Kumkʼu (0-based day)
+_LORD_START_NUMBER = 9
+
+# ===============
+# Helper / Math
+# ===============
+
+def gregorian_to_jdn(year: int, month: int, day: int) -> int:
+    """Proleptic Gregorian → JDN (astronomical year numbering internally)."""
+    y = year + 1 if year < 0 else year
     a = (14 - month) // 12
-    y = year + 4800 - a
-    m = month + 12 * a - 3
-    jdn = day + (153 * m + 2) // 5 + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+    y_ = y + 4800 - a
+    m_ = month + 12 * a - 3
+    return day + (153 * m_ + 2) // 5 + 365 * y_ + y_ // 4 - y_ // 100 + y_ // 400 - 32045
 
-    return jdn
 
-def jdn_to_maya_long_count(jdn):
-    long_count_start_jdn = 584283  # Base date for Maya Long Count
-    days_since_start = jdn - long_count_start_jdn
+def jdn_to_gregorian(jdn: int) -> Tuple[int, int, int]:
+    """JDN → (year, month, day) in historical numbering (…,-2,-1,1,2,…)."""
+    f = jdn + 1401 + (((4 * jdn + 274277) // 146097) * 3) // 4 - 38
+    e = 4 * f + 3
+    g = (e % 1461) // 4
+    h = 5 * g + 2
+    day = (h % 153) // 5 + 1
+    month = ((h // 153 + 2) % 12) + 1
+    year = e // 1461 - 4716 + (12 + 2 - month) // 12
+    if year <= 0:
+        year -= 1
+    return year, month, day
 
-    baktun = days_since_start // 144000
-    days_since_start %= 144000
 
-    katun = days_since_start // 7200
-    days_since_start %= 7200
+def floor_divmod(a: int, b: int) -> Tuple[int, int]:
+    """Divmod with non-negative remainder, works for negative a as Python does."""
+    q = a // b
+    r = a - q * b
+    return q, r
 
-    tun = days_since_start // 360
-    days_since_start %= 360
 
-    uinal = days_since_start // 20
-    k_in = days_since_start % 20
-    return (baktun, katun, tun, uinal, k_in)
+def jdn_to_long_count(jdn: int) -> Tuple[int, int, int, int, int]:
+    """JDN → normalized Long Count (baktun, katun, tun, uinal, kin)."""
+    days = jdn - MAYA_EPOCH_JDN
+    baktun, rem = floor_divmod(days, 144000)   # 20*20*18*20
+    katun, rem  = floor_divmod(rem, 7200)      # 20*18*20
+    tun, rem    = floor_divmod(rem, 360)       # 18*20
+    uinal, kin  = floor_divmod(rem, 20)
+    return (baktun, katun, tun, uinal, kin)
 
-def calculate_tzolkin(jdn):
-    days_since_start = jdn - 584283 - 1  # Adjusting by subtracting one day
-    day_number = (days_since_start + 4) % 13 + 1  # Adjust for Tzolk'in start in relation to the GMT correlation
-    day_name = days_since_start % 20
-    return TZOLKIN_NAMES[day_name], day_number
 
-def calculate_haab(jdn):
-    days_since_start = jdn - 584283 - 1  # Adjusting by subtracting one day
-    haab_day = (days_since_start + 348) % 365  # Adjust for Haab' start in relation to the GMT correlation
-    month = haab_day // 20
-    day = haab_day % 20
-    return HAAB_MONTHS[month], day + 1
+def long_count_components_to_total_days(b: int, k: int, t: int, u: int, kin: int) -> int:
+    """Allow out-of-range LC components; convert straight to total days (may be negative)."""
+    return b * 144000 + k * 7200 + t * 360 + u * 20 + kin
 
-def calculate_lord_of_the_night(jdn):
-    # Adjusting the calculation by subtracting one additional day to align correctly
-    lord_index = (jdn - 584283 - 1) % 9  # Subtract 1 more day to correct the alignment
-    return f"G{lord_index + 1}"
 
-def validate_date(year, month, day):
-    # Check if month and day are valid
-    if month < 1 or month > 12:
+def normalize_long_count(b: int, k: int, t: int, u: int, kin: int) -> Tuple[int, int, int, int, int]:
+    """
+    Normalize possibly out-of-range LC components into canonical ranges by:
+      1) summing to total days,
+      2) converting back via jdn_to_long_count.
+    """
+    total_days = long_count_components_to_total_days(b, k, t, u, kin)
+    jdn = MAYA_EPOCH_JDN + total_days
+    return jdn_to_long_count(jdn)
+
+
+def long_count_to_jdn(baktun: int, katun: int, tun: int, uinal: int, kin: int, strict: bool = False) -> int:
+    """
+    LC → JDN.
+    - If strict=True: enforce canonical ranges (katun,tun,kin 0..19; uinal 0..17).
+    - If strict=False: auto-normalize arbitrary values.
+    """
+    if strict:
+        if not (0 <= katun <= 19 and 0 <= tun <= 19 and 0 <= uinal <= 17 and 0 <= kin <= 19):
+            raise ValueError("Invalid Long Count: katun,tun,kin must be 0..19 and uinal 0..17.")
+        total = baktun * 144000 + katun * 7200 + tun * 360 + uinal * 20 + kin
+        return MAYA_EPOCH_JDN + total
+    else:
+        nb, nk, nt, nu, nkin = normalize_long_count(baktun, katun, tun, uinal, kin)
+        total = nb * 144000 + nk * 7200 + nt * 360 + nu * 20 + nkin
+        return MAYA_EPOCH_JDN + total
+
+
+# ===========================
+# Tzolkʼin / Haabʼ / Night 9
+# ===========================
+
+def tzolkin_from_jdn(jdn: int) -> Tuple[str, int]:
+    days = jdn - MAYA_EPOCH_JDN
+    name_idx = (_TZ_START_NAME_INDEX + days) % 20
+    number = ((_TZ_START_NUMBER - 1 + days) % 13) + 1
+    return TZOLKIN_NAMES[name_idx], number
+
+
+def haab_from_jdn(jdn: int) -> Tuple[str, int]:
+    """Returns (month_name, day_number) with day base per HAAB_DAY_BASE (0 or 1)."""
+    days = jdn - MAYA_EPOCH_JDN
+    haab_index = (_HAAB_START_ABS_INDEX + days) % 365  # 0..364
+    month = haab_index // 20
+    day_zero_based = haab_index % 20   # 0..19 (Wayebʼ 0..4)
+    day_display = day_zero_based if HAAB_DAY_BASE == 0 else day_zero_based + 1
+    return HAAB_MONTHS[month], day_display
+
+
+def lord_of_the_night_from_jdn(jdn: int) -> str:
+    days = jdn - MAYA_EPOCH_JDN
+    num = ((_LORD_START_NUMBER - 1 + days) % 9) + 1
+    return f"G{num}"
+
+
+# ===============
+# Input Validation
+# ===============
+
+def is_leap_year_gregorian(year: int) -> bool:
+    """Leap rule for proleptic Gregorian (astronomical internally)."""
+    y = year if year > 0 else year + 1
+    return (y % 4 == 0) and (y % 100 != 0 or y % 400 == 0)
+
+
+def validate_gregorian_date(year: int, month: int, day: int) -> bool:
+    if not (1 <= month <= 12) or day < 1:
         return False
-    if day < 1 or day > 31:
-        return False
-    
-    # For BCE years, we skip datetime.date validation
-    if year < 0:
-        return True
+    dim = [31, 29 if is_leap_year_gregorian(year) else 28, 31, 30, 31, 30,
+           31, 31, 30, 31, 30, 31]
+    return day <= dim[month - 1]
 
-    # Handle specific days in each month, considering leap years
-    days_in_month = [31, 29 if is_leap_year(year) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    if day > days_in_month[month - 1]:
-        return False
 
-    try:
-        datetime.date(year, month, day)
-        return True
-    except ValueError:
-        return False
+# ============
+# UI / Display
+# ============
 
-def is_leap_year(year):
-    if year < 0:
-        year = -year  # Leap year rules don't apply to BCE, but this handles negative years for simplicity
-    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+def display_from_jdn(jdn: int) -> None:
+    lc = jdn_to_long_count(jdn)
+    tz_name, tz_num = tzolkin_from_jdn(jdn)
+    haab_month, haab_day = haab_from_jdn(jdn)
+    lord = lord_of_the_night_from_jdn(jdn)
+    y, m, d = jdn_to_gregorian(jdn)
 
-# Welcome message
+    diary = f"{'.'.join(map(str, lc))} - {tz_num} {tz_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
+    print(f"\nDiary Format:\n{diary}")
+    print("\nLong Count:")
+    print(f"{lc[0]} Bʼakʼtun, {lc[1]} Kʼatun, {lc[2]} Tun, {lc[3]} Winal, {lc[4]} Kin")
+    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {tz_num} {tz_name}")
+    print(f"Haabʼ (Yucatec name): {haab_day} {haab_month}")
+    print(f"Lord of the Night: {lord}")
+    print(f"Gregorian (proleptic): {y}-{m:02d}-{d:02d}")
+
 
 def show_welcome_message():
     today = datetime.date.today()
     print(f"Welcome! Todayʼs date is {today.strftime('%Y-%m-%d')}.\n")
     jdn_today = gregorian_to_jdn(today.year, today.month, today.day)
-    long_count_today = jdn_to_maya_long_count(jdn_today)
-    tzolkin_name_today, tzolkin_number_today = calculate_tzolkin(jdn_today)
-    haab_month_today, haab_day_today = calculate_haab(jdn_today)
-    lord_of_the_night_today = calculate_lord_of_the_night(jdn_today)
+    display_from_jdn(jdn_today)
 
-    # Diary Format
-    diary_format = f"{'.'.join(map(str, long_count_today))} - {tzolkin_number_today} {tzolkin_name_today} - {haab_day_today} {haab_month_today} - {lord_of_the_night_today} - {today.strftime('%Y-%m-%d')}"
-    print(f"Diary Format:\n{diary_format}")
 
-    # Descriptive Long Count
-    print("\nTodayʼs Long Count:")
-    print(f"{long_count_today[0]} Bʼakʼtun, {long_count_today[1]} Kʼatun, {long_count_today[2]} Tun, {long_count_today[3]} Winal, {long_count_today[4]} Kin")
+# ======
+#  CLI
+# ======
 
-    # Cholq'ij (Tzolk'in) Day
-    print(f"\nTodayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):\n{tzolkin_number_today} {tzolkin_name_today}")
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Convert between Gregorian and Mayan calendars (Long Count, Tzolkʼin, Haabʼ, Night Lords)."
+    )
+    parser.add_argument(
+        "--corr", type=int, default=584283,
+        help="Correlation constant (JDN) for Long Count 0.0.0.0.0 (default: 584283)."
+    )
+    parser.add_argument(
+        "--haab-day-base", type=int, choices=[0, 1], default=0,
+        help="Haabʼ day numbering base: 0 = 0..19/0..4 (default), 1 = 1..20/1..5."
+    )
 
-    # Haab' Day
-    print(f"\nTodayʼs Haabʼ Day (Yucatec name):\n{haab_day_today} {haab_month_today}")
+    # Mutually exclusive non-interactive modes
+    sub = parser.add_mutually_exclusive_group()
 
-    # Lord of the Night
-    print(f"\nTodayʼs Lord of the Night:\n{lord_of_the_night_today}")
+    # Non-interactive: from Gregorian
+    sub.add_argument(
+        "--from-gregorian", nargs=3, metavar=("YEAR", "MONTH", "DAY"), type=int,
+        help="Non-interactive conversion from Gregorian date (YEAR MONTH DAY)."
+    )
 
-    #print(f"Starting day of the long count: -3114-09-06")
+    # Non-interactive: from Long Count
+    sub.add_argument(
+        "--from-lc", nargs=5, metavar=("BAKTUN", "KATUN", "TUN", "UINAL", "KIN"), type=int,
+        help="Non-interactive conversion from Long Count (allow out-of-range; auto-normalized)."
+    )
 
-# Main program
-if __name__ == "__main__":
-    show_welcome_message()  # Display the welcome message with today's Mayan calendar date.
-    while True:
+    # Optional strict flag for LC inputs (applies only if --from-lc is used)
+    parser.add_argument(
+        "--strict-lc", action="store_true",
+        help="When set with --from-lc, enforce canonical LC component ranges instead of normalizing."
+    )
+
+    return parser.parse_args()
+
+
+def main():
+    global MAYA_EPOCH_JDN, HAAB_DAY_BASE
+    args = parse_args()
+    MAYA_EPOCH_JDN = args.corr
+    HAAB_DAY_BASE = args.haab_day_base
+
+    print(f"[Using correlation JDN = {MAYA_EPOCH_JDN}, Haabʼ day base = {HAAB_DAY_BASE}]")
+
+    # Non-interactive modes
+    if args.from_gregorian:
+        y, m, d = args.from_gregorian
+        if not validate_gregorian_date(y, m, d):
+            print("Invalid Gregorian date.")
+            return
+        jdn = gregorian_to_jdn(y, m, d)
+        display_from_jdn(jdn)
+        return
+
+    if args.from_lc:
+        b, k, t, u, kin = args.from_lc
         try:
-            year = int(input("\nEnter the year (e.g., 2024, -200 for 200 BCE): "))
-            month = int(input("Enter the month (1-12): "))
-            day = int(input("Enter the day (1-31): "))
+            jdn = long_count_to_jdn(b, k, t, u, kin, strict=args.strict_lc)
+        except ValueError as e:
+            print(f"Error: {e}")
+            return
+        display_from_jdn(jdn)
+        return
 
-            if validate_date(year, month, day):
+    # Interactive mode (fallback)
+    show_welcome_message()
+    while True:
+        mode = input("\nChoose input mode: [G]regorian or [L]ong Count? ").strip().lower()
+        if mode.startswith('g'):
+            try:
+                year = int(input("Enter the year (e.g., 2024, -200 for 200 BCE): "))
+                month = int(input("Enter the month (1-12): "))
+                day = int(input("Enter the day (1-31): "))
+                if not validate_gregorian_date(year, month, day):
+                    print("Invalid date entered. Please enter a valid Gregorian date.")
+                    continue
                 jdn = gregorian_to_jdn(year, month, day)
-                long_count = jdn_to_maya_long_count(jdn)
-                haab_month, haab_day = calculate_haab(jdn)
-                tzolkin_name, tzolkin_number = calculate_tzolkin(jdn)
-                lord_of_the_night = calculate_lord_of_the_night(jdn)
+            except ValueError:
+                print("Invalid input. Please enter numeric values for year, month, and day.")
+                continue
+        elif mode.startswith('l'):
+            try:
+                b = int(input("Bʼakʼtun (can be negative): "))
+                k = int(input("Kʼatun (any int; normalized): "))
+                t = int(input("Tun (any int; normalized): "))
+                u = int(input("Winal (any int; normalized): "))
+                kin = int(input("Kin (any int; normalized): "))
 
-                # Display the calculated values
-                diary_format = f"{'.'.join(map(str, long_count))} - {tzolkin_number} {tzolkin_name} - {haab_day} {haab_month} - {lord_of_the_night} - {year}-{month:02d}-{day:02d}"
-                print(f"\nDiary Format:\n{diary_format}")
-                print("\nLong Count:")
-                print(f"{long_count[0]} Bʼakʼtun, {long_count[1]} Kʼatun, {long_count[2]} Tun, {long_count[3]} Winal, {long_count[4]} Kin")
-                print(f"Tzolkʼin: {tzolkin_number} {tzolkin_name}")
-                print(f"Haabʼ: {haab_day} {haab_month}")
-                print(f"Lord of the Night: {lord_of_the_night}")
-            else:
-                print("Invalid date entered. Please enter a valid date.")
+                # Normalize automatically in interactive mode
+                jdn = long_count_to_jdn(b, k, t, u, kin, strict=False)
+            except ValueError:
+                print("Invalid input. Please enter integer values for Long Count components.")
+                continue
+        else:
+            print("Please choose 'G' or 'L'.")
+            continue
 
-        except ValueError:
-            print("Invalid input. Please enter numeric values for year, month, and day.")
-        
-        another = input("Do you want to enter another date? (yes/y or no/n): ").strip().lower()
-        if another not in ['yes', 'y']:
+        display_from_jdn(jdn)
+
+        another = input("Do you want to convert another date? (yes/y or no/n): ").strip().lower()
+        if another not in ("yes", "y"):
             break
+
+
+if __name__ == "__main__":
+    main()
+
