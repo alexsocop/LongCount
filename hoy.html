@@ -1,87 +1,146 @@
-  <!-- This is the desktop version to get the current Mayan long count, written by MY Sia and edited by Alex Socop.
+  <!-- This is the desktop version to get the current Mayan long count, written by MY Sia and Alex Socop.
   (1) Download this html file (button is somewhere in the top right corner) and save it in the desired location (e.g., your desktop).
   (2) Right click on the downloaded file (i.e., "hoy.html") and choose to always open the file using your favourite web browser (e.g., Mozilla Firefox, Google Chrome).
   (3) You can double click it from now on. Feel free to distribute this file and spread the awesomeness of this ancient culture. :) -->
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <title>Mayan Long Count – Today</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" charset="UTF-8"/>
   <style>
-    p {
-      text-align: center;
-      font-size: 45px;
-      margin-top: 0px;
-    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    h1 { text-align: center; margin-bottom: 8px; }
+    p.label { text-align: center; font-weight: 700; margin: 24px 0 4px; }
+    p.value { text-align: center; font-size: 50px; margin: 0 0 8px; }
+    .small { font-size: 18px; color: #555; text-align: center; margin-top: 16px; }
   </style>
 </head>
-
 <body>
-  <p><b>Diary Format:</b></p>
-  <p id="diary"></p>
-  <p><b>Todayʼs Long Count:</b></p>
-  <p id="longcount"></p>
-  <p><b>Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</b></p>
-  <p id="cholqij"></p>
-  <p><b>Todayʼs Haabʼ Day (Yucatec name):</b></p>
-  <p id="haab"></p>
-  <p><b>Todayʼs Lord of the Night:</b></p>
-  <p id="lord"></p>
+  <h1>Mayan Calendar – Today</h1>
 
-<script>
-    // Get current date and Baktun 13 date
-    const baktun13Date = new Date("2012-12-21");
-    baktun13Date.setHours(0);
-    const today = new Date();
+  <p class="label">Diary Format:</p>
+  <p class="value" id="diary"></p>
 
-    // Calculate the difference in days
-    let diffDays = Math.floor((today - baktun13Date) / (1000 * 60 * 60 * 24));
+  <p class="label">Todayʼs Long Count:</p>
+  <p class="value" id="longcount"></p>
 
-    // Calculate Long Count
-    const baktun = 13;
-    const katun = Math.floor(diffDays / 7200);
-    const tun = Math.floor((diffDays % 7200) / 360);
-    const winal = Math.floor((diffDays % 360) / 20);
-    const kin = diffDays % 20;
+  <p class="label">Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</p>
+  <p class="value" id="cholqij"></p>
 
-    // Display Long Count
-    const longCount = `${baktun} Bʼakʼtun, ${katun} Kʼatun, ${tun} Tun, ${winal} Winal, ${kin} Kin`;
-    document.getElementById("longcount").innerHTML = longCount;
+  <p class="label">Todayʼs Haabʼ Day (Yucatec name):</p>
+  <p class="value" id="haab"></p>
 
-    // Long Count numbers only for diary format
-    const longCountNumbers = `${baktun}.${katun}.${tun}.${winal}.${kin}`;
+  <p class="label">Todayʼs Lord of the Night:</p>
+  <p class="value" id="lord"></p>
 
-    // Cholqʼij (Tzolkʼin) Calculation (unchanged)
-    const tzolkinNames = ["Ajpuʼ", "Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tʼziʼ", "Bʼatzʼ", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq"];
-    const baseCholqijNum = 4;
-    let x = Math.floor(diffDays / 13);
-    let y = 13 * x;
-    let cholqijNum = diffDays - y + baseCholqijNum;
-    if (cholqijNum > 13) {
-      cholqijNum -= 13;
+  <p class="small">Uses GMT correlation JDN 584283; Haabʼ day base 0 (0–19; Wayebʼ 0–4).</p>
+
+  <script>
+    // ======= Configuration to mirror Python script =======
+    // Default GMT correlation for Long Count 0.0.0.0.0
+    let CORR_JDN = 584283;
+
+    // Optional: allow override via ?corr=584285
+    // const params = new URLSearchParams(location.search);
+    // if (params.has("corr")) CORR_JDN = parseInt(params.get("corr"), 10) || CORR_JDN;
+
+    // Haab' day base: 0 => 0..19 (Wayeb' 0..4)  [default to match Python]
+    const HAAB_DAY_BASE = 0;
+
+    // Names (order matches Python)
+    const HAAB_MONTHS = [
+      "Pop","Wo","Sip","Sotzʼ","Sek","Xul","Yaxkʼin","Mol","Chʼen","Yax",
+      "Sak","Keh","Mak","Kʼankʼin","Muwan","Pax","Kʼayab","Kumkʼu","Wayebʼ"
+    ];
+    const TZOLKIN_NAMES = [
+      "Imox","Iqʼ","Aqʼabʼal","Kʼat","Kan","Kame","Kej","Qʼanil","Toj","Tzʼiʼ",
+      "Bʼatzʼ","E","Aj","Iʼx","Tzʼikin","Ajmaq","Noʼj","Tijax","Kawoq","Ajpuʼ"
+    ];
+
+    // Epoch alignments (0.0.0.0.0): 4 Ajpuʼ, 8 Kumkʼu, G9
+    const TZ_START_NUMBER = 4;
+    let TZ_START_NAME_INDEX = TZOLKIN_NAMES.indexOf("Ajpuʼ");
+    if (TZ_START_NAME_INDEX < 0) TZ_START_NAME_INDEX = 19; // robust fallback
+    const HAAB_START_ABS_INDEX = 17 * 20 + 8;   // 8 Kumkʼu (0-based)
+    const LORD_START_NUMBER = 9;
+
+    // ======= Helpers =======
+    function mod(a, m) { return ((a % m) + m) % m; }
+    function divmodFloor(a, b) {
+      const q = Math.floor(a / b);
+      return [q, a - q * b];
     }
-    let cholqijDay = tzolkinNames[kin];
-    const cholqijFull = `${cholqijNum} ${cholqijDay}`;
-    document.getElementById("cholqij").innerHTML = cholqijFull;
+    // Proleptic Gregorian → JDN (astronomical year numbering internally)
+    function gregorianToJDN(year, month, day) {
+      const y = (year < 0) ? year + 1 : year;
+      const a = Math.floor((14 - month) / 12);
+      const y_ = y + 4800 - a;
+      const m_ = month + 12 * a - 3;
+      return day + Math.floor((153 * m_ + 2) / 5) + 365 * y_ + Math.floor(y_ / 4)
+           - Math.floor(y_ / 100) + Math.floor(y_ / 400) - 32045;
+    }
+    // Local date → YYYY-MM-DD (no UTC shift)
+    function todayLocalYMD() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const d = now.getDate();
+      const pad = n => String(n).padStart(2, "0");
+      return { y, m, d, iso: `${y}-${pad(m)}-${pad(d)}` };
+    }
 
-    // Haab' Calculation with Adjusted Reference Date
-    const haabMonths = ["Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax", "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayebʼ"];
-    const haabReferenceDate = new Date("2023-04-01"); // Adjusted reference date to ensure correct Haab' date alignment
-    let haabDaysPassed = Math.floor((today - haabReferenceDate) / (1000 * 60 * 60 * 24)) % 365;
-    let haabDay = (haabDaysPassed % 20) + 1;
-    let haabMonth = haabMonths[Math.floor(haabDaysPassed / 20)];
-    const haabFull = `${haabDay} ${haabMonth}`;
-    document.getElementById("haab").innerHTML = haabFull;
+    // ======= Core conversions (as in Python) =======
+    function jdnToLongCount(jdn) {
+      const days = jdn - CORR_JDN;
+      let rem, b, k, t, u, kin;
+      [b, rem]  = divmodFloor(days, 144000); // 20*20*18*20
+      [k, rem]  = divmodFloor(rem, 7200);    // 20*18*20
+      [t, rem]  = divmodFloor(rem, 360);     // 18*20
+      [u, kin]  = divmodFloor(rem, 20);
+      return { b, k, t, u, kin, days };
+    }
+    function tzolkinFromDays(days) {
+      const nameIdx = mod(TZ_START_NAME_INDEX + days, 20);
+      const number  = mod((TZ_START_NUMBER - 1) + days, 13) + 1;
+      return { name: TZOLKIN_NAMES[nameIdx], number };
+    }
+    function haabFromDays(days) {
+      const haabIndex = mod(HAAB_START_ABS_INDEX + days, 365); // 0..364
+      const month = Math.floor(haabIndex / 20);
+      const dayZero = haabIndex % 20;                           // 0..19 (0..4 in Wayebʼ)
+      const displayDay = (HAAB_DAY_BASE === 0) ? dayZero : (dayZero + 1);
+      return { month: HAAB_MONTHS[month], day: displayDay };
+    }
+    function lordFromDays(days) {
+      const num = mod((LORD_START_NUMBER - 1) + days, 9) + 1;
+      return `G${num}`;
+    }
 
-    // Calculate Lord of the Night
-    let lordOfNight = `G${((diffDays - 1) % 9) + 1}`;
-    document.getElementById("lord").innerHTML = lordOfNight;
+    // ======= Render today's values =======
+    (function renderToday() {
+      const { y, m, d, iso } = todayLocalYMD();
+      const jdn = gregorianToJDN(y, m, d);
 
-    // Today's date in diary format
-    const formattedDate = today.toISOString().split('T')[0];
-    const diaryFormat = `${longCountNumbers} - ${cholqijFull} - ${haabFull} - ${lordOfNight} - ${formattedDate}`;
-    document.getElementById("diary").innerHTML = diaryFormat;
-</script>
-<p>Get the <a href="https://github.com/alexsocop/LongCount/blob/main/hoy.html" target="_blank">desktop version</a> of the long count.</p>
+      const { b, k, t, u, kin, days } = jdnToLongCount(jdn);
+      const tz = tzolkinFromDays(days);
+      const ha = haabFromDays(days);
+      const lord = lordFromDays(days);
+
+      const longCount = `${b} Bʼakʼtun, ${k} Kʼatun, ${t} Tun, ${u} Winal, ${kin} Kin`;
+      const lcNums = `${b}.${k}.${t}.${u}.${kin}`;
+      const cholqijFull = `${tz.number} ${tz.name}`;
+      const haabFull = `${ha.day} ${ha.month}`;
+      const diary = `${lcNums} - ${cholqijFull} - ${haabFull} - ${lord} - ${iso}`;
+
+      // Fill the page
+      document.getElementById("longcount").innerText = longCount;
+      document.getElementById("cholqij").innerText = cholqijFull;
+      document.getElementById("haab").innerText = haabFull;
+      document.getElementById("lord").innerText = lord;
+      document.getElementById("diary").innerText = diary;
+    })();
+  </script>
+  <p class="small">Get the <a href="https://github.com/alexsocop/LongCount/blob/main/hoy.html" target="_blank">desktop version</a> of the long count.</p>
 </body>
 </html>
-
