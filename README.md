@@ -7,7 +7,7 @@ This project outputs the Mayan calendar in two ways:
 - **Diary format** (a single summarized line)
 - A **detailed breakdown** of the Long Count and related cycles
 
-Feel free to revise the code, contribute, and share.
+Feel free to revise the code, contribute, and share. For now the program is a simple script, in the future I will work on a graphical interface and portability to different systems (Linux, Android, Mac, Windows).
 
 ---
 
