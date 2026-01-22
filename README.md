@@ -72,6 +72,70 @@ This makes conversions simple because once a date is a single number, the script
 
 ---
 
+## What does the `%` symbol mean in Python?
+
+In Python, the `%` symbol is called the **modulo operator**.
+
+It gives you the **remainder** after dividing one number by another.
+
+Example:
+
+```python
+10 % 3
+```
+
+- `10 / 3 = 3` with a remainder of `1`
+- so the result is `1`
+
+So:
+
+- `10 % 3 = 1`
+- `11 % 3 = 2`
+- `12 % 3 = 0`  ← this is important because it “wraps around”
+
+### Why `%` is useful for calendars
+
+Calendars like the Tzolk’in (260 days), Haab’ (365 days), and Night Lords (9 days) are **repeating cycles**.
+
+Modulo is a simple way to “loop” back to the beginning of a cycle:
+
+- `% 20` means “repeat every 20 steps”
+- `% 13` means “repeat every 13 steps”
+- `% 365` means “repeat every 365 days”
+- `% 9` means “repeat every 9 days”
+
+That is why this script uses `%` many times to compute day names and day numbers.
+
+---
+
+## What does `...` mean when you see it in examples?
+
+In this documentation, `...` (three dots) means:
+
+> “some value goes here, but we are not writing the full expression”
+
+It is just a **placeholder** to keep the examples short and readable.
+
+For example, when you see:
+
+```python
+(... + days_since_epoch) % 20
+```
+
+It means:
+
+- there is some starting offset (a number) that the script uses,
+- then it adds `days_since_epoch`,
+- and finally applies `% 20` to stay inside the 20-name cycle.
+
+So you can read it as:
+
+> “start at the correct beginning point, move forward by the number of days, then wrap around the cycle”
+
+**Important:** in real Python code, `...` can exist as a special object called `Ellipsis`, but **this script is not using it as code**. Here it is only used in the README examples as a shorthand.
+
+---
+
 ## The “correlation constant” (epoch alignment)
 
 The Mayan Long Count needs a starting point that links it to modern dates.
