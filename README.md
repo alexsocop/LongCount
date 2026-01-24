@@ -61,6 +61,22 @@ Alautun.K’inchiltun.Kalabtun.Piktun.B’ak’tun.K’atun.Tun.Winal.Kin - Tzol
 
 This extended format is shown only when requested by the user.
 
+**Units beyond B’ak’tun (bigger than 144,000 days)**
+
+After B’ak’tun, the Long Count can continue in the same pattern:
+- Piktun = 20 B’ak’tun
+- Kalabtun = 20 Piktun
+- K’inchiltun = 20 Kalabtun
+- Alautun = 20 K’inchiltun
+
+In days (to have a better understanding of the scale)
+- 1 Piktun = 20 × 144,000 = 2,880,000 days
+- 1 Kalabtun = 57,600,000 days
+- 1 K’inchiltun = 1,152,000,000 days
+- 1 Alautun = 23,040,000,000 days
+
+These are enormous spans of time.
+
 ---
 
 ## Core idea: everything becomes a day number (JDN)
