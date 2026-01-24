@@ -69,6 +69,41 @@ def jdn_to_long_count(jdn: int) -> Tuple[int, int, int, int, int]:
     return (baktun, katun, tun, uinal, kin)
 
 
+# ===========================
+# Extended Long Count (beyond Bʼakʼtun)
+# ===========================
+
+# Higher-order units (each is 20× the previous, above Bʼakʼtun)
+# Bʼakʼtun = 144,000 days
+PIKTUN_DAYS     = 20 * 144000            # 2,880,000
+KALABTUN_DAYS   = 20 * PIKTUN_DAYS       # 57,600,000
+KINCHILTUN_DAYS = 20 * KALABTUN_DAYS     # 1,152,000,000
+ALAUTUN_DAYS    = 20 * KINCHILTUN_DAYS   # 23,040,000,000
+
+
+def jdn_to_extended_long_count(jdn: int) -> Tuple[int, int, int, int, int, int, int, int, int]:
+    """JDN → normalized *extended* Long Count:
+    (alautun, kinchiltun, kalabtun, piktun, baktun, katun, tun, uinal, kin).
+    """
+    days = jdn - MAYA_EPOCH_JDN
+
+    alautun, rem     = floor_divmod(days, ALAUTUN_DAYS)
+    kinchiltun, rem  = floor_divmod(rem, KINCHILTUN_DAYS)
+    kalabtun, rem    = floor_divmod(rem, KALABTUN_DAYS)
+    piktun, rem      = floor_divmod(rem, PIKTUN_DAYS)
+
+    baktun, rem = floor_divmod(rem, 144000)
+    katun, rem  = floor_divmod(rem, 7200)
+    tun, rem    = floor_divmod(rem, 360)
+    uinal, kin  = floor_divmod(rem, 20)
+
+    return (alautun, kinchiltun, kalabtun, piktun, baktun, katun, tun, uinal, kin)
+
+
+def format_extended_lc(ext_lc: Tuple[int, int, int, int, int, int, int, int, int]) -> str:
+    """Format extended LC as dot-separated string: A.KC.KAL.PIK.B.K.T.U.K"""
+    return ".".join(map(str, ext_lc))
+
 def long_count_components_to_total_days(b: int, k: int, t: int, u: int, kin: int) -> int:
     """Allow out-of-range LC components; convert straight to total days (may be negative)."""
     return b * 144000 + k * 7200 + t * 360 + u * 20 + kin
@@ -168,6 +203,28 @@ def display_from_jdn(jdn: int) -> None:
     print(f"Gregorian (proleptic): {y}-{m:02d}-{d:02d}")
 
 
+def display_extended_from_jdn(jdn: int) -> None:
+    """Like display_from_jdn(), but shows the extended Long Count (Alautun..Kin)."""
+    ext_lc = jdn_to_extended_long_count(jdn)
+    tz_name, tz_num = tzolkin_from_jdn(jdn)
+    haab_month, haab_day = haab_from_jdn(jdn)
+    lord = lord_of_the_night_from_jdn(jdn)
+    y, m, d = jdn_to_gregorian(jdn)
+
+    diary = f"{format_extended_lc(ext_lc)} - {tz_num} {tz_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
+    print(f"\nDiary Format (Extended):\n{diary}")
+
+    print("\nExtended Long Count:")
+    print(
+        f"{ext_lc[0]} Alautun, {ext_lc[1]} Kʼinchiltun, {ext_lc[2]} Kalabtun, {ext_lc[3]} Piktun, "
+        f"{ext_lc[4]} Bʼakʼtun, {ext_lc[5]} Kʼatun, {ext_lc[6]} Tun, {ext_lc[7]} Winal, {ext_lc[8]} Kin"
+    )
+    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {tz_num} {tz_name}")
+    print(f"Haabʼ (Yucatec name): {haab_day} {haab_month}")
+    print(f"Lord of the Night: {lord}")
+    print(f"Gregorian (proleptic): {y}-{m:02d}-{d:02d}")
+
+
 def show_welcome_message():
     today = datetime.date.today()
     print(f"Welcome! Todayʼs date is {today.strftime('%Y-%m-%d')}.\n")
@@ -246,8 +303,11 @@ def main():
 
     # Interactive mode (fallback)
     show_welcome_message()
+    # Track the most recently displayed/converted date so extended output matches the user's last date.
+    today = datetime.date.today()
+    last_jdn = gregorian_to_jdn(today.year, today.month, today.day)
     while True:
-        mode = input("\nChoose input mode: [G]regorian or [L]ong Count? ").strip().lower()
+        mode = input("\nChoose input mode to convert a new date: [G]regorian, [L]ong Count, or [N]one (show extended today / exit): ").strip().lower()
         if mode.startswith('g'):
             try:
                 year = int(input("Enter the year (e.g., 2024, -200 for 200 BCE): "))
@@ -257,6 +317,7 @@ def main():
                     print("Invalid date entered. Please enter a valid Gregorian date.")
                     continue
                 jdn = gregorian_to_jdn(year, month, day)
+                last_jdn = jdn
             except ValueError:
                 print("Invalid input. Please enter numeric values for year, month, and day.")
                 continue
@@ -270,18 +331,46 @@ def main():
 
                 # Normalize automatically in interactive mode
                 jdn = long_count_to_jdn(b, k, t, u, kin, strict=False)
+                last_jdn = jdn
             except ValueError:
                 print("Invalid input. Please enter integer values for Long Count components.")
                 continue
+        elif mode.startswith('n'):
+            # Skip conversion and optionally show *today* in the extended format.
+            show_ext = input(
+                "Would you like to show today's date in the extended format (Piktun, Kalabtun, K'inchiltun, Alautun)? (yes/y or no/n): "
+            ).strip().lower()
+
+            if show_ext in ("yes", "y"):
+                today = datetime.date.today()
+                jdn_today = gregorian_to_jdn(today.year, today.month, today.day)
+                display_extended_from_jdn(jdn_today)
+
+            break
         else:
-            print("Please choose 'G' or 'L'.")
+            print("Please choose 'G', 'L', or 'N'.")
             continue
 
         display_from_jdn(jdn)
 
         another = input("Do you want to convert another date? (yes/y or no/n): ").strip().lower()
-        if another not in ("yes", "y"):
-            break
+        if another in ("yes", "y"):
+            continue
+
+        # If the user is done converting dates, optionally show the *last date* in the extended format.
+        show_ext = input(
+            "Would you like to show this date in the extended format (Piktun, Kalabtun, K'inchiltun, Alautun)? (yes/y or no/n): "
+        ).strip().lower()
+
+        if show_ext in ("yes", "y"):
+            display_extended_from_jdn(last_jdn)
+
+            # After showing extended output, ask again if they want to convert another date.
+            again = input("Do you want to convert another date? (yes/y or no/n): ").strip().lower()
+            if again in ("yes", "y"):
+                continue
+
+        break
 
 
 if __name__ == "__main__":
