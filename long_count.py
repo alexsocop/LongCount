@@ -188,6 +188,16 @@ def validate_gregorian_date(year: int, month: int, day: int) -> bool:
 
 def display_from_jdn(jdn: int) -> None:
     lc = jdn_to_long_count(jdn)
+
+    # If Bʼakʼtun is outside the canonical 0..19 range, the standard 5-part Long Count
+    # becomes ambiguous. In that case we automatically show the Extended Long Count.
+    if abs(lc[0]) >= 20:
+        print(
+            "\nNote: This date exceeds the 0..19 Bʼakʼtun range for the standard Long Count. "
+            "Showing the Extended Long Count instead."
+        )
+        display_extended_from_jdn(jdn)
+        return
     tz_name, tz_num = tzolkin_from_jdn(jdn)
     haab_month, haab_day = haab_from_jdn(jdn)
     lord = lord_of_the_night_from_jdn(jdn)
@@ -206,6 +216,16 @@ def display_from_jdn(jdn: int) -> None:
 def display_extended_from_jdn(jdn: int) -> None:
     """Like display_from_jdn(), but shows the extended Long Count (Alautun..Kin)."""
     ext_lc = jdn_to_extended_long_count(jdn)
+
+    # The extended format is written here with explicit Alautun/Kʼinchiltun/Kalabtun/Piktun labels.
+    # If Alautun is outside 0..19, we still show it as an integer, but this is not a standard
+    # (historically-attested) way of writing dates.
+    if abs(ext_lc[0]) >= 20:
+        print(
+            "\nDate out of the scope of the current format. "
+            "It is shown as 21, 22, 200... Alautun (and beyond) as a practical extension, "
+            "but this is not an official/standard way of displaying the date."
+        )
     tz_name, tz_num = tzolkin_from_jdn(jdn)
     haab_month, haab_day = haab_from_jdn(jdn)
     lord = lord_of_the_night_from_jdn(jdn)
