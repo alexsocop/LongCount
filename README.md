@@ -17,9 +17,10 @@ The main script (`long_count.py`) converts dates between:
 
 - **Gregorian** dates (e.g. `2026-01-22`)
 - **Mayan Long Count** (e.g. `13.0.0.0.0`)
-- **Tzolk’in / Cholq’ij** (260‑day ritual cycle)
-- **Haab’** (365‑day solar cycle)
-- **Lords of the Night** (9‑day cycle)
+- **Extended Long Count** (adds Piktun, Kalabtun, K’inchiltun, and Alautun)
+- **Tzolk’in / Cholq’ij** (260-day ritual cycle)
+- **Haab’** (365-day solar cycle)
+- **Lords of the Night** (9-day cycle)
 
 It supports both:
 
@@ -49,6 +50,16 @@ Then it prints a detailed breakdown, like:
 - Haab’ month + day
 - Night Lord (G1–G9)
 - Gregorian date
+
+### Extended output (optional)
+
+When running in interactive mode, the script can also display an **Extended Diary Format**:
+
+```
+Alautun.K’inchiltun.Kalabtun.Piktun.B’ak’tun.K’atun.Tun.Winal.Kin - Tzolk’in - Haab’ - Night Lord - Gregorian
+```
+
+This extended format is shown only when requested by the user.
 
 ---
 
@@ -312,6 +323,7 @@ The program will ask if you want to input:
 
 - `G` for Gregorian
 - `L` for Long Count
+- `N` to skip conversions and optionally show the extended format
 
 ### Convert from Gregorian (command line)
 
@@ -345,3 +357,5 @@ In the last commit a few functions were updated:
 2. The script uses the **Long Count as the base** for time keeping
 3. The input accepts **Long Count or Gregorian formats**
 4. It accepts **negative B’ak’tun numbers** and handles special cases
+5. Added an **Extended Long Count** option (Piktun, Kalabtun, K’inchiltun, Alautun)
+6. When requested, the script shows the **extended format for the last converted date** (not always today's date)
