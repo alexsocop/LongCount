@@ -1,0 +1,1168 @@
+<!-- This is the desktop version to get the current Mayan long count, written by MY Sia and edited by Alex Socop.
+     The Expanded version with a two-way Gregorian/Long Count converter and an optional community Gran Wayeb' adjustment and multilingual support was written by Alex Socop.
+
+     Gran Wayeb' note:
+     The standard epigraphic Haab' is a continuous 365-day cycle (18 x 20 days + 5 Wayeb' days).
+     The optional community mode below follows the supplied Ajq'ij tradition: a 13-day Gran Wayeb' is
+     intercalated after each 52-Haab block. Because the supplied example only states that 2012-12-21
+     corresponded to a Gran Wayeb', this implementation uses 2012-12-21 as Gran Wayeb' day 1.
+     Change GREAT_WAYEB_ANCHOR_* or GREAT_WAYEB_ANCHOR_DAY if your Ajq'ij provides a more precise anchor.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mayan Calendar – Today</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 24px;
+      line-height: 1.35;
+    }
+
+    .language-bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      max-width: 1100px;
+      margin: 0 auto 12px;
+    }
+
+    .language-bar label {
+      font-weight: 700;
+    }
+
+    .language-bar select {
+      border: 1px solid #999;
+      border-radius: 8px;
+      padding: 7px 10px;
+      background: transparent;
+    }
+
+    html[dir="rtl"] .language-bar {
+      justify-content: flex-start;
+    }
+
+    /* Calendar notation and date-entry strings remain LTR even in Arabic UI. */
+    p.value, #dateInput {
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
+
+    h1 { text-align: center; margin-bottom: 8px; }
+    p.label { text-align: center; font-weight: 700; margin: 24px 0 4px; }
+    p.value { text-align: center; font-size: clamp(30px, 4vw, 50px); margin: 0 0 8px; overflow-wrap: anywhere; }
+    .small { font-size: 18px; color: #666; text-align: center; margin-top: 16px; }
+
+    .actions {
+      display: flex;
+      justify-content: center;
+      margin: 28px 0 8px;
+    }
+
+    button, select, input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      padding: 10px 18px;
+      background: transparent;
+    }
+
+    button.primary {
+      font-weight: 700;
+    }
+
+    .converter {
+      max-width: 760px;
+      margin: 20px auto 30px;
+      padding: 20px;
+      border: 1px solid #aaa;
+      border-radius: 14px;
+    }
+
+    .converter[hidden], .result[hidden] { display: none; }
+
+    .converter h2, .result h2 {
+      text-align: center;
+      margin-top: 0;
+    }
+
+    .field {
+      max-width: 520px;
+      margin: 14px auto;
+    }
+
+    .field label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .field select, .field input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #999;
+      border-radius: 9px;
+      padding: 10px 12px;
+      background: transparent;
+    }
+
+    .hint {
+      font-size: 14px;
+      opacity: .75;
+      margin-top: 6px;
+    }
+
+    .error {
+      max-width: 520px;
+      margin: 10px auto 0;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .result {
+      border-top: 1px solid #aaa;
+      margin-top: 20px;
+      padding-top: 20px;
+    }
+
+    .result .value {
+      font-size: clamp(24px, 3.2vw, 38px);
+    }
+
+    details.settings {
+      max-width: 760px;
+      margin: 14px auto;
+      font-size: 15px;
+    }
+
+    details.settings summary {
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .settings-inner {
+      margin: 10px auto 0;
+      max-width: 560px;
+      text-align: center;
+    }
+
+    .settings-inner select {
+      max-width: 100%;
+      padding: 6px 9px;
+      border-radius: 7px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .small { color: #bbb; }
+    }
+  </style>
+</head>
+<body>
+  <div class="language-bar">
+    <label for="languageSelect" id="languageLabel">Language:</label>
+    <select id="languageSelect" aria-labelledby="languageLabel">
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="quc">Kʼicheʼ</option>
+      <option value="zh-TW">繁體中文（台灣）</option>
+      <option value="ja">日本語</option>
+      <option value="ar">العربية</option>
+      <option value="hi">हिन्दी</option>
+      <option value="id">Bahasa Indonesia</option>
+      <option value="pt">Português</option>
+      <option value="bn">বাংলা</option>
+    </select>
+  </div>
+
+  <h1 id="pageTitle">Mayan Calendar – Today</h1>
+
+  <p class="label" id="diaryLabel">Diary Format:</p>
+  <p class="value" id="diary"></p>
+
+  <p class="label" id="todayLongcountLabel">Todayʼs Long Count:</p>
+  <p class="value" id="longcount"></p>
+
+  <p class="label" id="todayCholqijLabel">Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</p>
+  <p class="value" id="cholqij"></p>
+
+  <p class="label" id="todayHaabLabel">Todayʼs Haabʼ Day (Yucatec name):</p>
+  <p class="value" id="haab"></p>
+
+  <p class="label" id="todayLordLabel">Todayʼs Lord of the Night:</p>
+  <p class="value" id="lord"></p>
+
+  <div class="actions">
+    <button class="primary" id="toggleConverter" type="button">Convert a date</button>
+  </div>
+
+  <section class="converter" id="converter" hidden aria-labelledby="converterTitle">
+    <h2 id="converterTitle">Date Converter</h2>
+
+    <div class="field">
+      <label for="conversionType" id="conversionQuestion">What would you like to enter?</label>
+      <select id="conversionType">
+        <option value="gregorian" id="gregorianOption">Gregorian date</option>
+        <option value="longcount" id="longcountOption">Long Count date</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="dateInput" id="dateInputLabel">Gregorian date</label>
+      <input id="dateInput" type="text" inputmode="text" autocomplete="off" placeholder="2026-09-01" />
+      <div class="hint" id="dateHint">Accepted: 2026-09-01, 2026.09.01, or 2026/09/01.</div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="convertButton" type="button">Convert</button>
+    </div>
+
+    <div class="error" id="conversionError" role="alert" aria-live="polite"></div>
+
+    <div class="result" id="conversionResult" hidden aria-live="polite">
+      <h2 id="convertedDateTitle">Converted Date</h2>
+
+      <p class="label" id="resultDiaryLabel">Diary Format:</p>
+      <p class="value" id="resultDiary"></p>
+
+      <p class="label" id="resultLongcountLabel">Long Count:</p>
+      <p class="value" id="resultLongcount"></p>
+
+      <p class="label" id="resultCholqijLabel">Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</p>
+      <p class="value" id="resultCholqij"></p>
+
+      <p class="label" id="resultHaabLabel">Haabʼ Day (Yucatec name):</p>
+      <p class="value" id="resultHaab"></p>
+
+      <p class="label" id="resultLordLabel">Lord of the Night:</p>
+      <p class="value" id="resultLord"></p>
+
+      <p class="label" id="resultGregorianLabel">Gregorian Date:</p>
+      <p class="value" id="resultGregorian"></p>
+    </div>
+  </section>
+
+  <p class="small" id="calculationNote"></p>
+
+  <details class="settings">
+    <summary id="settingsSummary">Haabʼ calculation settings</summary>
+    <div class="settings-inner">
+      <label for="haabMode"><strong id="haabModeLabel">Haabʼ mode:</strong></label>
+      <select id="haabMode">
+        <option value="great" selected id="greatModeOption">Community Gran Wayebʼ adjustment</option>
+        <option value="standard" id="standardModeOption">Standard continuous 365-day Haabʼ</option>
+      </select>
+      <p class="hint" id="settingsHint">
+        Gran Wayebʼ mode uses 2012-12-21 as day 1 of a 13-day intercalary Gran Wayebʼ and repeats the adjustment after each 52-Haab block. The standard option preserves the classical 365-day Haabʼ cycle.
+      </p>
+    </div>
+  </details>
+
+  <p class="small"><span id="footerPrefix"></span><a id="footerLink" href="https://github.com/alexsocop/LongCount/blob/main/hoy.html" target="_blank" rel="noopener noreferrer"></a><span id="footerSuffix"></span></p>
+
+  <script>
+    // ======= Configuration =======
+    // GMT correlation for Long Count 0.0.0.0.0.
+    let CORR_JDN = 584283;
+
+    // Haab' day base: 0 => 0..19 (Wayeb' 0..4), matching the original file.
+    const HAAB_DAY_BASE = 0;
+
+    // Community Gran Wayeb' configuration.
+    // Necessary assumption from the supplied oral/community example:
+    // 2012-12-21 is treated as Gran Wayeb' day 1.
+    const GREAT_WAYEB_ANCHOR_YEAR = 2012;
+    const GREAT_WAYEB_ANCHOR_MONTH = 12;
+    const GREAT_WAYEB_ANCHOR_DAY_OF_MONTH = 21;
+    const GREAT_WAYEB_ANCHOR_DAY = 1; // Change this if a more precise day number is provided.
+    const GREAT_WAYEB_DAYS = 13;
+    const HAAB_YEARS_PER_GREAT_CYCLE = 52;
+    const REGULAR_HAAB_DAYS = 365;
+    const GREAT_WAYEB_CYCLE_DAYS = HAAB_YEARS_PER_GREAT_CYCLE * REGULAR_HAAB_DAYS + GREAT_WAYEB_DAYS;
+
+    const HAAB_MONTHS = [
+      "Pop","Wo","Sip","Sotzʼ","Sek","Xul","Yaxkʼin","Mol","Chʼen","Yax",
+      "Sak","Keh","Mak","Kʼankʼin","Muwan","Pax","Kʼayab","Kumkʼu","Wayebʼ"
+    ];
+
+    const TZOLKIN_NAMES = [
+      "Imox","Iqʼ","Aqʼabʼal","Kʼat","Kan","Kame","Kej","Qʼanil","Toj","Tzʼiʼ",
+      "Bʼatzʼ","E","Aj","Iʼx","Tzʼikin","Ajmaq","Noʼj","Tijax","Kawoq","Ajpuʼ"
+    ];
+
+    // Classical epoch alignments for Long Count / Cholq'ij / standard Haab' / Lords of the Night.
+    const TZ_START_NUMBER = 4;
+    let TZ_START_NAME_INDEX = TZOLKIN_NAMES.indexOf("Ajpuʼ");
+    if (TZ_START_NAME_INDEX < 0) TZ_START_NAME_INDEX = 19;
+    const HAAB_START_ABS_INDEX = 17 * 20 + 8; // 8 Kumkʼu, 0-based
+    const LORD_START_NUMBER = 9;
+
+    // ======= Interface languages =======
+    // K'iche' interface wording is intentionally conservative. Technical calendar names
+    // (Long Count, Cholq'ij, Haab', Gran Wayeb') remain recognizable rather than being
+    // replaced with speculative neologisms.
+    const TRANSLATIONS = {
+      en: {
+        documentTitle: "Mayan Calendar – Today",
+        pageTitle: "Mayan Calendar – Today",
+        language: "Language:",
+        diaryFormat: "Diary Format:",
+        todayLongcount: "Todayʼs Long Count:",
+        todayCholqij: "Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):",
+        todayHaab: "Todayʼs Haabʼ Day (Yucatec name):",
+        todayLord: "Todayʼs Lord of the Night:",
+        convertDate: "Convert a date",
+        closeConverter: "Close converter",
+        converterTitle: "Date Converter",
+        conversionQuestion: "What would you like to enter?",
+        gregorianDate: "Gregorian date",
+        longcountDate: "Long Count date",
+        convert: "Convert",
+        convertedDate: "Converted Date",
+        longcountLabel: "Long Count:",
+        cholqijLabel: "Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):",
+        haabLabel: "Haabʼ Day (Yucatec name):",
+        lordLabel: "Lord of the Night:",
+        gregorianLabel: "Gregorian Date:",
+        settingsSummary: "Haabʼ calculation settings",
+        haabMode: "Haabʼ mode:",
+        greatMode: "Community Gran Wayebʼ adjustment",
+        standardMode: "Standard continuous 365-day Haabʼ",
+        settingsHint: "Gran Wayebʼ mode uses 2012-12-21 as day 1 of a 13-day intercalary Gran Wayebʼ and repeats the adjustment after each 52-Haab block. The standard option preserves the classical 365-day Haabʼ cycle.",
+        gregorianHint: "Accepted: 2026-09-01, 2026.09.01, or 2026/09/01. Negative years may be used for BCE dates.",
+        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — for example 13.0.13.16.2.",
+        noteStandard: "Uses GMT correlation JDN 584283; standard continuous 365-day Haabʼ; Haabʼ day base 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Uses GMT correlation JDN 584283; community Gran Wayebʼ adjustment anchored to 2012-12-21; Haabʼ day base 0 for ordinary winals.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "Enter a Gregorian date as YYYY-MM-DD, YYYY.MM.DD, or YYYY/MM/DD.",
+        errorYear: "The Gregorian year must be a whole number other than 0. Use a negative year for BCE dates (for example, -3114).",
+        errorMonth: "The Gregorian month must be between 1 and 12.",
+        errorMonthDays: "That month has {days} days in the proleptic Gregorian calendar.",
+        errorLongcountFormat: "Enter the Long Count as Bʼakʼtun.Kʼatun.Tun.Winal.Kin, for example 13.0.13.16.2.",
+        errorLongcountLarge: "The Long Count contains a number that is too large.",
+        errorLongcountRange: "Use canonical coefficients: Kʼatun 0–19, Tun 0–19, Winal 0–17, and Kin 0–19.",
+        footerPrefix: "Get the ",
+        footerLink: "desktop version",
+        footerSuffix: " of the Long Count."
+      },
+
+      es: {
+        documentTitle: "Calendario maya – Hoy",
+        pageTitle: "Calendario maya – Hoy",
+        language: "Idioma:",
+        diaryFormat: "Formato de diario:",
+        todayLongcount: "Cuenta Larga de hoy:",
+        todayCholqij: "Cholqʼij (Tzolkʼin) de hoy (nombre kʼicheʼ):",
+        todayHaab: "Día Haabʼ de hoy (nombre yucateco):",
+        todayLord: "Señor de la Noche de hoy:",
+        convertDate: "Convertir una fecha",
+        closeConverter: "Cerrar conversor",
+        converterTitle: "Conversor de fechas",
+        conversionQuestion: "¿Qué tipo de fecha desea ingresar?",
+        gregorianDate: "Fecha gregoriana",
+        longcountDate: "Fecha de Cuenta Larga",
+        convert: "Convertir",
+        convertedDate: "Fecha convertida",
+        longcountLabel: "Cuenta Larga:",
+        cholqijLabel: "Cholqʼij (Tzolkʼin) (nombre kʼicheʼ):",
+        haabLabel: "Día Haabʼ (nombre yucateco):",
+        lordLabel: "Señor de la Noche:",
+        gregorianLabel: "Fecha gregoriana:",
+        settingsSummary: "Configuración del cálculo del Haabʼ",
+        haabMode: "Modo del Haabʼ:",
+        greatMode: "Ajuste comunitario del Gran Wayebʼ",
+        standardMode: "Haabʼ estándar continuo de 365 días",
+        settingsHint: "El modo Gran Wayebʼ toma el 2012-12-21 como día 1 de un Gran Wayebʼ intercalar de 13 días y repite el ajuste después de cada bloque de 52 Haabʼ. La opción estándar conserva el ciclo clásico continuo del Haabʼ de 365 días.",
+        gregorianHint: "Se acepta: 2026-09-01, 2026.09.01 o 2026/09/01. Para fechas a. C. se pueden usar años negativos.",
+        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por ejemplo 13.0.13.16.2.",
+        noteStandard: "Usa la correlación GMT JDN 584283; Haabʼ estándar continuo de 365 días; base del día Haabʼ 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Usa la correlación GMT JDN 584283; ajuste comunitario del Gran Wayebʼ anclado al 2012-12-21; base del día Haabʼ 0 para los winales ordinarios.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "Ingrese una fecha gregoriana como AAAA-MM-DD, AAAA.MM.DD o AAAA/MM/DD.",
+        errorYear: "El año gregoriano debe ser un número entero distinto de 0. Use un año negativo para fechas a. C. (por ejemplo, -3114).",
+        errorMonth: "El mes gregoriano debe estar entre 1 y 12.",
+        errorMonthDays: "Ese mes tiene {days} días en el calendario gregoriano proléptico.",
+        errorLongcountFormat: "Ingrese la Cuenta Larga como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por ejemplo 13.0.13.16.2.",
+        errorLongcountLarge: "La Cuenta Larga contiene un número demasiado grande.",
+        errorLongcountRange: "Use coeficientes canónicos: Kʼatun 0–19, Tun 0–19, Winal 0–17 y Kin 0–19.",
+        footerPrefix: "Obtenga la ",
+        footerLink: "versión de escritorio",
+        footerSuffix: " de la Cuenta Larga."
+      },
+
+      quc: {
+        documentTitle: "Mayabʼ Cholbʼal Qʼij – Kamik",
+        pageTitle: "Mayabʼ Cholbʼal Qʼij – Kamik",
+        language: "Chʼabʼal:",
+        diaryFormat: "Rubʼeyal tzʼibʼanik:",
+        todayLongcount: "Long Count rech kamik:",
+        todayCholqij: "Cholqʼij rech kamik (Kʼicheʼ bʼiʼaj):",
+        todayHaab: "Haabʼ rech kamik (Yucatec bʼiʼaj):",
+        todayLord: "Rajaw Aqʼabʼ rech kamik:",
+        convertDate: "Jalaʼ jun qʼijul",
+        closeConverter: "Tzʼapij ri jalabʼal",
+        converterTitle: "Jalabʼal Qʼijul",
+        conversionQuestion: "Jas qʼijul kawaj katzʼibʼaj?",
+        gregorianDate: "Gregorian qʼijul",
+        longcountDate: "Long Count qʼijul",
+        convert: "Jalaʼ",
+        convertedDate: "Jalom Qʼijul",
+        longcountLabel: "Long Count:",
+        cholqijLabel: "Cholqʼij (Kʼicheʼ bʼiʼaj):",
+        haabLabel: "Haabʼ (Yucatec bʼiʼaj):",
+        lordLabel: "Rajaw Aqʼabʼ:",
+        gregorianLabel: "Gregorian qʼijul:",
+        settingsSummary: "Uchaʼik rajilaxik ri Haabʼ",
+        haabMode: "Rubʼeyal Haabʼ:",
+        greatMode: "Ujalik Gran Wayebʼ rech ri komon",
+        standardMode: "Haabʼ 365 qʼij, man ktan taj",
+        settingsHint: "Ri Gran Wayebʼ mode kkoj 2012-12-21 achiʼel nabʼe qʼij rech 13 qʼij Gran Wayebʼ, xuqujeʼ kkamulux chi rij 52 Haabʼ. Ri standard mode kutaqej ri Haabʼ rech 365 qʼij.",
+        gregorianHint: "Kakwin katzʼibʼaj: 2026-09-01, 2026.09.01 o 2026/09/01. Keʼokisax negative taq junabʼ che BCE qʼijul.",
+        longcountHint: "Rubʼeyal: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — kʼambʼal naʼoj 13.0.13.16.2.",
+        noteStandard: "Kkoj GMT correlation JDN 584283; Haabʼ 365 qʼij man ktan taj; Haabʼ qʼij base 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Kkoj GMT correlation JDN 584283; ujalik Gran Wayebʼ rech ri komon, ruxeʼ 2012-12-21; Haabʼ qʼij base 0 pa ri winalabʼ.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "Chatzʼibʼaj jun Gregorian qʼijul achiʼel YYYY-MM-DD, YYYY.MM.DD o YYYY/MM/DD.",
+        errorYear: "Ri Gregorian junabʼ rajawaxik jun tzʼaqat ajilabʼal, man 0 taj. Chakojoʼ jun negative junabʼ che BCE qʼijul (kʼambʼal naʼoj, -3114).",
+        errorMonth: "Ri Gregorian ikʼ rajawaxik kʼo pa 1 chi 12.",
+        errorMonthDays: "We ikʼ riʼ kʼo {days} qʼij pa ri proleptic Gregorian cholbʼal qʼij.",
+        errorLongcountFormat: "Chatzʼibʼaj ri Long Count achiʼel Bʼakʼtun.Kʼatun.Tun.Winal.Kin, kʼambʼal naʼoj 13.0.13.16.2.",
+        errorLongcountLarge: "Kʼo jun sibʼalaj nimalaj ajilabʼal pa ri Long Count.",
+        errorLongcountRange: "Chakojoʼ ri canonical coefficients: Kʼatun 0–19, Tun 0–19, Winal 0–17, xuqujeʼ Kin 0–19.",
+        footerPrefix: "Chawilaʼ ri ",
+        footerLink: "desktop version",
+        footerSuffix: " rech Long Count."
+      },
+
+      ja: {
+        documentTitle: "マヤ暦 – 今日",
+        pageTitle: "マヤ暦 – 今日",
+        language: "言語：",
+        diaryFormat: "日記形式：",
+        todayLongcount: "今日の長期暦：",
+        todayCholqij: "今日の Cholqʼij（Tzolkʼin）日（Kʼicheʼ名）：",
+        todayHaab: "今日の Haabʼ 日（ユカテコ・マヤ語名）：",
+        todayLord: "今日の夜の神：",
+        convertDate: "日付を変換",
+        closeConverter: "変換画面を閉じる",
+        converterTitle: "日付変換",
+        conversionQuestion: "入力する日付の種類を選んでください。",
+        gregorianDate: "グレゴリオ暦の日付",
+        longcountDate: "長期暦の日付",
+        convert: "変換",
+        convertedDate: "変換結果",
+        longcountLabel: "長期暦：",
+        cholqijLabel: "Cholqʼij（Tzolkʼin）日（Kʼicheʼ名）：",
+        haabLabel: "Haabʼ 日（ユカテコ・マヤ語名）：",
+        lordLabel: "夜の神：",
+        gregorianLabel: "グレゴリオ暦の日付：",
+        settingsSummary: "Haabʼ の計算設定",
+        haabMode: "Haabʼ モード：",
+        greatMode: "コミュニティ版 Gran Wayebʼ 補正",
+        standardMode: "標準の連続365日 Haabʼ",
+        settingsHint: "Gran Wayebʼ モードでは、2012-12-21 を13日間の挿入期間 Gran Wayebʼ の1日目とし、52 Haabʼ ごとにこの補正を繰り返します。標準モードでは、古典的な連続365日の Haabʼ 周期を維持します。",
+        gregorianHint: "入力例：2026-09-01、2026.09.01、2026/09/01。紀元前の日付には負の年を使用できます。",
+        longcountHint: "形式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin — 例：13.0.13.16.2。",
+        noteStandard: "GMT相関 JDN 584283 を使用。標準の連続365日 Haabʼ。Haabʼ の日数は0始まり（0–19、Wayebʼ は0–4）。",
+        noteGreat: "GMT相関 JDN 584283 を使用。2012-12-21 を基準とするコミュニティ版 Gran Wayebʼ 補正。通常の winal の Haabʼ 日数は0始まり。",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "グレゴリオ暦の日付を YYYY-MM-DD、YYYY.MM.DD、または YYYY/MM/DD の形式で入力してください。",
+        errorYear: "グレゴリオ暦の年は0以外の整数で入力してください。紀元前の日付には負の年を使用してください（例：-3114）。",
+        errorMonth: "グレゴリオ暦の月は1から12の間で入力してください。",
+        errorMonthDays: "先発グレゴリオ暦では、その月は {days} 日です。",
+        errorLongcountFormat: "長期暦を Bʼakʼtun.Kʼatun.Tun.Winal.Kin の形式で入力してください。例：13.0.13.16.2。",
+        errorLongcountLarge: "長期暦に大きすぎる数値が含まれています。",
+        errorLongcountRange: "標準的な係数を使用してください：Kʼatun 0–19、Tun 0–19、Winal 0–17、Kin 0–19。",
+        footerPrefix: "長期暦の",
+        footerLink: "デスクトップ版",
+        footerSuffix: "を入手する。"
+      },
+
+      ar: {
+        documentTitle: "تقويم المايا – اليوم",
+        pageTitle: "تقويم المايا – اليوم",
+        language: "اللغة:",
+        diaryFormat: "صيغة السجل:",
+        todayLongcount: "العدّ الطويل لليوم:",
+        todayCholqij: "يوم Cholqʼij (Tzolkʼin) اليوم (بالاسم الكيتشيʼ):",
+        todayHaab: "يوم Haabʼ اليوم (بالاسم اليوكاتيكي):",
+        todayLord: "سيد الليل لليوم:",
+        convertDate: "تحويل تاريخ",
+        closeConverter: "إغلاق المحوّل",
+        converterTitle: "محوّل التاريخ",
+        conversionQuestion: "ما نوع التاريخ الذي تريد إدخاله؟",
+        gregorianDate: "تاريخ غريغوري",
+        longcountDate: "تاريخ العدّ الطويل",
+        convert: "تحويل",
+        convertedDate: "التاريخ المحوّل",
+        longcountLabel: "العدّ الطويل:",
+        cholqijLabel: "يوم Cholqʼij (Tzolkʼin) (بالاسم الكيتشيʼ):",
+        haabLabel: "يوم Haabʼ (بالاسم اليوكاتيكي):",
+        lordLabel: "سيد الليل:",
+        gregorianLabel: "التاريخ الغريغوري:",
+        settingsSummary: "إعدادات حساب Haabʼ",
+        haabMode: "نمط Haabʼ:",
+        greatMode: "تصحيح Gran Wayebʼ وفق التقليد المجتمعي",
+        standardMode: "Haabʼ القياسي المتواصل من 365 يومًا",
+        settingsHint: "يعتبر نمط Gran Wayebʼ تاريخ 2012-12-21 اليوم الأول من Gran Wayebʼ إضافي مدته 13 يومًا، ويكرر التصحيح بعد كل دورة من 52 Haabʼ. أما الخيار القياسي فيحافظ على دورة Haabʼ الكلاسيكية المتواصلة من 365 يومًا.",
+        gregorianHint: "مقبول: 2026-09-01 أو 2026.09.01 أو 2026/09/01. يمكن استخدام سنة سالبة للتواريخ قبل الميلاد.",
+        longcountHint: "الصيغة: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — مثال: 13.0.13.16.2.",
+        noteStandard: "يستخدم ارتباط GMT بقيمة JDN 584283؛ Haabʼ قياسي متواصل من 365 يومًا؛ يبدأ ترقيم يوم Haabʼ من 0 (0–19؛ وWayebʼ من 0–4).",
+        noteGreat: "يستخدم ارتباط GMT بقيمة JDN 584283؛ تصحيح Gran Wayebʼ وفق التقليد المجتمعي والمرتبط بتاريخ 2012-12-21؛ يبدأ ترقيم يوم Haabʼ من 0 في الـ winal العادية.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "أدخل تاريخًا غريغوريًا بصيغة YYYY-MM-DD أو YYYY.MM.DD أو YYYY/MM/DD.",
+        errorYear: "يجب أن تكون السنة الغريغورية عددًا صحيحًا غير 0. استخدم سنة سالبة للتواريخ قبل الميلاد (مثل -3114).",
+        errorMonth: "يجب أن يكون الشهر الغريغوري بين 1 و12.",
+        errorMonthDays: "يحتوي هذا الشهر على {days} يومًا في التقويم الغريغوري الاستباقي.",
+        errorLongcountFormat: "أدخل العدّ الطويل بصيغة Bʼakʼtun.Kʼatun.Tun.Winal.Kin، مثل 13.0.13.16.2.",
+        errorLongcountLarge: "يحتوي العدّ الطويل على رقم كبير جدًا.",
+        errorLongcountRange: "استخدم المعاملات القياسية: Kʼatun من 0–19، وTun من 0–19، وWinal من 0–17، وKin من 0–19.",
+        footerPrefix: "احصل على ",
+        footerLink: "نسخة سطح المكتب",
+        footerSuffix: " من العدّ الطويل."
+      },
+
+      hi: {
+        documentTitle: "माया कैलेंडर – आज",
+        pageTitle: "माया कैलेंडर – आज",
+        language: "भाषा:",
+        diaryFormat: "डायरी प्रारूप:",
+        todayLongcount: "आज की लॉन्ग काउंट:",
+        todayCholqij: "आज का Cholqʼij (Tzolkʼin) दिन (Kʼicheʼ नाम):",
+        todayHaab: "आज का Haabʼ दिन (युकातेको नाम):",
+        todayLord: "आज का रात्रि-स्वामी:",
+        convertDate: "तिथि बदलें",
+        closeConverter: "परिवर्तक बंद करें",
+        converterTitle: "तिथि परिवर्तक",
+        conversionQuestion: "आप किस प्रकार की तिथि दर्ज करना चाहते हैं?",
+        gregorianDate: "ग्रेगोरियन तिथि",
+        longcountDate: "लॉन्ग काउंट तिथि",
+        convert: "परिवर्तित करें",
+        convertedDate: "परिवर्तित तिथि",
+        longcountLabel: "लॉन्ग काउंट:",
+        cholqijLabel: "Cholqʼij (Tzolkʼin) दिन (Kʼicheʼ नाम):",
+        haabLabel: "Haabʼ दिन (युकातेको नाम):",
+        lordLabel: "रात्रि-स्वामी:",
+        gregorianLabel: "ग्रेगोरियन तिथि:",
+        settingsSummary: "Haabʼ गणना सेटिंग्स",
+        haabMode: "Haabʼ मोड:",
+        greatMode: "समुदाय-आधारित Gran Wayebʼ समायोजन",
+        standardMode: "मानक निरंतर 365-दिवसीय Haabʼ",
+        settingsHint: "Gran Wayebʼ मोड 2012-12-21 को 13-दिवसीय अंतरवर्ती Gran Wayebʼ का पहला दिन मानता है और प्रत्येक 52-Haabʼ चक्र के बाद इस समायोजन को दोहराता है। मानक विकल्प पारंपरिक निरंतर 365-दिवसीय Haabʼ चक्र को बनाए रखता है।",
+        gregorianHint: "स्वीकृत प्रारूप: 2026-09-01, 2026.09.01 या 2026/09/01। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष का उपयोग किया जा सकता है।",
+        longcountHint: "प्रारूप: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — उदाहरण: 13.0.13.16.2।",
+        noteStandard: "GMT सहसंबंध JDN 584283 का उपयोग करता है; मानक निरंतर 365-दिवसीय Haabʼ; Haabʼ दिन आधार 0 (0–19; Wayebʼ 0–4)।",
+        noteGreat: "GMT सहसंबंध JDN 584283 का उपयोग करता है; 2012-12-21 पर आधारित समुदाय-आधारित Gran Wayebʼ समायोजन; सामान्य winal में Haabʼ दिन आधार 0।",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "ग्रेगोरियन तिथि YYYY-MM-DD, YYYY.MM.DD या YYYY/MM/DD प्रारूप में दर्ज करें।",
+        errorYear: "ग्रेगोरियन वर्ष 0 के अलावा कोई पूर्णांक होना चाहिए। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष उपयोग करें (उदाहरण: -3114)।",
+        errorMonth: "ग्रेगोरियन महीना 1 से 12 के बीच होना चाहिए।",
+        errorMonthDays: "प्रोलेप्टिक ग्रेगोरियन कैलेंडर में इस महीने में {days} दिन हैं।",
+        errorLongcountFormat: "लॉन्ग काउंट को Bʼakʼtun.Kʼatun.Tun.Winal.Kin प्रारूप में दर्ज करें, उदाहरण: 13.0.13.16.2।",
+        errorLongcountLarge: "लॉन्ग काउंट में कोई संख्या बहुत बड़ी है।",
+        errorLongcountRange: "मानक गुणांक उपयोग करें: Kʼatun 0–19, Tun 0–19, Winal 0–17 और Kin 0–19।",
+        footerPrefix: "लॉन्ग काउंट का ",
+        footerLink: "डेस्कटॉप संस्करण",
+        footerSuffix: " प्राप्त करें।"
+      },
+
+      id: {
+        documentTitle: "Kalender Maya – Hari Ini",
+        pageTitle: "Kalender Maya – Hari Ini",
+        language: "Bahasa:",
+        diaryFormat: "Format catatan:",
+        todayLongcount: "Hitungan Panjang hari ini:",
+        todayCholqij: "Hari Cholqʼij (Tzolkʼin) hari ini (nama Kʼicheʼ):",
+        todayHaab: "Hari Haabʼ hari ini (nama Yucatec):",
+        todayLord: "Penguasa Malam hari ini:",
+        convertDate: "Konversi tanggal",
+        closeConverter: "Tutup konverter",
+        converterTitle: "Konverter Tanggal",
+        conversionQuestion: "Jenis tanggal apa yang ingin Anda masukkan?",
+        gregorianDate: "Tanggal Gregorian",
+        longcountDate: "Tanggal Hitungan Panjang",
+        convert: "Konversi",
+        convertedDate: "Tanggal Hasil Konversi",
+        longcountLabel: "Hitungan Panjang:",
+        cholqijLabel: "Hari Cholqʼij (Tzolkʼin) (nama Kʼicheʼ):",
+        haabLabel: "Hari Haabʼ (nama Yucatec):",
+        lordLabel: "Penguasa Malam:",
+        gregorianLabel: "Tanggal Gregorian:",
+        settingsSummary: "Pengaturan perhitungan Haabʼ",
+        haabMode: "Mode Haabʼ:",
+        greatMode: "Penyesuaian Gran Wayebʼ komunitas",
+        standardMode: "Haabʼ standar 365 hari berkesinambungan",
+        settingsHint: "Mode Gran Wayebʼ menggunakan 2012-12-21 sebagai hari pertama Gran Wayebʼ interkalar selama 13 hari dan mengulangi penyesuaian setelah setiap blok 52 Haabʼ. Opsi standar mempertahankan siklus Haabʼ klasik 365 hari yang berkesinambungan.",
+        gregorianHint: "Diterima: 2026-09-01, 2026.09.01, atau 2026/09/01. Tahun negatif dapat digunakan untuk tanggal SM.",
+        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — contoh 13.0.13.16.2.",
+        noteStandard: "Menggunakan korelasi GMT JDN 584283; Haabʼ standar 365 hari berkesinambungan; dasar hari Haabʼ 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Menggunakan korelasi GMT JDN 584283; penyesuaian Gran Wayebʼ komunitas dengan acuan 2012-12-21; dasar hari Haabʼ 0 untuk winal biasa.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "Masukkan tanggal Gregorian sebagai YYYY-MM-DD, YYYY.MM.DD, atau YYYY/MM/DD.",
+        errorYear: "Tahun Gregorian harus berupa bilangan bulat selain 0. Gunakan tahun negatif untuk tanggal SM (misalnya -3114).",
+        errorMonth: "Bulan Gregorian harus antara 1 dan 12.",
+        errorMonthDays: "Bulan tersebut memiliki {days} hari dalam kalender Gregorian proleptik.",
+        errorLongcountFormat: "Masukkan Hitungan Panjang sebagai Bʼakʼtun.Kʼatun.Tun.Winal.Kin, misalnya 13.0.13.16.2.",
+        errorLongcountLarge: "Hitungan Panjang berisi angka yang terlalu besar.",
+        errorLongcountRange: "Gunakan koefisien kanonis: Kʼatun 0–19, Tun 0–19, Winal 0–17, dan Kin 0–19.",
+        footerPrefix: "Dapatkan ",
+        footerLink: "versi desktop",
+        footerSuffix: " Hitungan Panjang."
+      },
+
+      pt: {
+        documentTitle: "Calendário Maia – Hoje",
+        pageTitle: "Calendário Maia – Hoje",
+        language: "Idioma:",
+        diaryFormat: "Formato de diário:",
+        todayLongcount: "Contagem Longa de hoje:",
+        todayCholqij: "Dia Cholqʼij (Tzolkʼin) de hoje (nome Kʼicheʼ):",
+        todayHaab: "Dia Haabʼ de hoje (nome iucateque):",
+        todayLord: "Senhor da Noite de hoje:",
+        convertDate: "Converter uma data",
+        closeConverter: "Fechar conversor",
+        converterTitle: "Conversor de Datas",
+        conversionQuestion: "Que tipo de data deseja inserir?",
+        gregorianDate: "Data gregoriana",
+        longcountDate: "Data da Contagem Longa",
+        convert: "Converter",
+        convertedDate: "Data convertida",
+        longcountLabel: "Contagem Longa:",
+        cholqijLabel: "Dia Cholqʼij (Tzolkʼin) (nome Kʼicheʼ):",
+        haabLabel: "Dia Haabʼ (nome iucateque):",
+        lordLabel: "Senhor da Noite:",
+        gregorianLabel: "Data gregoriana:",
+        settingsSummary: "Configurações do cálculo do Haabʼ",
+        haabMode: "Modo do Haabʼ:",
+        greatMode: "Ajuste comunitário do Gran Wayebʼ",
+        standardMode: "Haabʼ padrão contínuo de 365 dias",
+        settingsHint: "O modo Gran Wayebʼ considera 2012-12-21 como o primeiro dia de um Gran Wayebʼ intercalar de 13 dias e repete o ajuste após cada bloco de 52 Haabʼ. A opção padrão preserva o ciclo clássico contínuo do Haabʼ de 365 dias.",
+        gregorianHint: "Aceita: 2026-09-01, 2026.09.01 ou 2026/09/01. Anos negativos podem ser usados para datas a.C.",
+        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por exemplo, 13.0.13.16.2.",
+        noteStandard: "Usa a correlação GMT JDN 584283; Haabʼ padrão contínuo de 365 dias; base do dia Haabʼ 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Usa a correlação GMT JDN 584283; ajuste comunitário do Gran Wayebʼ ancorado em 2012-12-21; base do dia Haabʼ 0 para os winal comuns.",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "Insira uma data gregoriana como YYYY-MM-DD, YYYY.MM.DD ou YYYY/MM/DD.",
+        errorYear: "O ano gregoriano deve ser um número inteiro diferente de 0. Use um ano negativo para datas a.C. (por exemplo, -3114).",
+        errorMonth: "O mês gregoriano deve estar entre 1 e 12.",
+        errorMonthDays: "Esse mês tem {days} dias no calendário gregoriano proléptico.",
+        errorLongcountFormat: "Insira a Contagem Longa como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por exemplo, 13.0.13.16.2.",
+        errorLongcountLarge: "A Contagem Longa contém um número grande demais.",
+        errorLongcountRange: "Use coeficientes canônicos: Kʼatun 0–19, Tun 0–19, Winal 0–17 e Kin 0–19.",
+        footerPrefix: "Obtenha a ",
+        footerLink: "versão para desktop",
+        footerSuffix: " da Contagem Longa."
+      },
+
+      bn: {
+        documentTitle: "মায়া ক্যালেন্ডার – আজ",
+        pageTitle: "মায়া ক্যালেন্ডার – আজ",
+        language: "ভাষা:",
+        diaryFormat: "ডায়েরি বিন্যাস:",
+        todayLongcount: "আজকের লং কাউন্ট:",
+        todayCholqij: "আজকের Cholqʼij (Tzolkʼin) দিন (Kʼicheʼ নাম):",
+        todayHaab: "আজকের Haabʼ দিন (ইউকাতেক নাম):",
+        todayLord: "আজকের রাত্রির অধিপতি:",
+        convertDate: "তারিখ রূপান্তর করুন",
+        closeConverter: "রূপান্তরক বন্ধ করুন",
+        converterTitle: "তারিখ রূপান্তরক",
+        conversionQuestion: "আপনি কোন ধরনের তারিখ লিখতে চান?",
+        gregorianDate: "গ্রেগরিয়ান তারিখ",
+        longcountDate: "লং কাউন্ট তারিখ",
+        convert: "রূপান্তর করুন",
+        convertedDate: "রূপান্তরিত তারিখ",
+        longcountLabel: "লং কাউন্ট:",
+        cholqijLabel: "Cholqʼij (Tzolkʼin) দিন (Kʼicheʼ নাম):",
+        haabLabel: "Haabʼ দিন (ইউকাতেক নাম):",
+        lordLabel: "রাত্রির অধিপতি:",
+        gregorianLabel: "গ্রেগরিয়ান তারিখ:",
+        settingsSummary: "Haabʼ গণনার সেটিংস",
+        haabMode: "Haabʼ মোড:",
+        greatMode: "কমিউনিটি Gran Wayebʼ সমন্বয়",
+        standardMode: "মানক ধারাবাহিক 365 দিনের Haabʼ",
+        settingsHint: "Gran Wayebʼ মোডে 2012-12-21-কে 13 দিনের অন্তর্বর্তী Gran Wayebʼ-এর প্রথম দিন ধরা হয় এবং প্রতি 52-Haabʼ চক্রের পরে এই সমন্বয় পুনরাবৃত্তি করা হয়। মানক বিকল্পটি Haabʼ-এর ধ্রুপদি ধারাবাহিক 365 দিনের চক্র বজায় রাখে।",
+        gregorianHint: "গ্রহণযোগ্য: 2026-09-01, 2026.09.01 অথবা 2026/09/01। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করা যায়।",
+        longcountHint: "বিন্যাস: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — উদাহরণ 13.0.13.16.2।",
+        noteStandard: "GMT correlation JDN 584283 ব্যবহার করে; মানক ধারাবাহিক 365 দিনের Haabʼ; Haabʼ দিনের ভিত্তি 0 (0–19; Wayebʼ 0–4)।",
+        noteGreat: "GMT correlation JDN 584283 ব্যবহার করে; 2012-12-21-কে ভিত্তি করে কমিউনিটি Gran Wayebʼ সমন্বয়; সাধারণ winal-এর Haabʼ দিনের ভিত্তি 0।",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "গ্রেগরিয়ান তারিখ YYYY-MM-DD, YYYY.MM.DD অথবা YYYY/MM/DD বিন্যাসে লিখুন।",
+        errorYear: "গ্রেগরিয়ান বছর 0 ছাড়া একটি পূর্ণসংখ্যা হতে হবে। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করুন (যেমন -3114)।",
+        errorMonth: "গ্রেগরিয়ান মাস 1 থেকে 12-এর মধ্যে হতে হবে।",
+        errorMonthDays: "প্রোলেপ্টিক গ্রেগরিয়ান ক্যালেন্ডারে ওই মাসে {days} দিন আছে।",
+        errorLongcountFormat: "লং কাউন্ট Bʼakʼtun.Kʼatun.Tun.Winal.Kin বিন্যাসে লিখুন, যেমন 13.0.13.16.2।",
+        errorLongcountLarge: "লং কাউন্টে একটি সংখ্যা অত্যন্ত বড়।",
+        errorLongcountRange: "মানক সহগ ব্যবহার করুন: Kʼatun 0–19, Tun 0–19, Winal 0–17 এবং Kin 0–19।",
+        footerPrefix: "লং কাউন্টের ",
+        footerLink: "ডেস্কটপ সংস্করণ",
+        footerSuffix: " নিন।"
+      },
+
+      "zh-TW": {
+        documentTitle: "瑪雅曆法－今日",
+        pageTitle: "瑪雅曆法－今日",
+        language: "語言：",
+        diaryFormat: "日誌格式：",
+        todayLongcount: "今日長紀曆：",
+        todayCholqij: "今日 Cholqʼij（Tzolkʼin）日（Kʼicheʼ 名稱）：",
+        todayHaab: "今日 Haabʼ 日（猶加敦語名稱）：",
+        todayLord: "今日夜之主：",
+        convertDate: "轉換日期",
+        closeConverter: "關閉日期轉換器",
+        converterTitle: "日期轉換器",
+        conversionQuestion: "您要輸入哪一種日期？",
+        gregorianDate: "格里曆日期",
+        longcountDate: "長紀曆日期",
+        convert: "轉換",
+        convertedDate: "轉換結果",
+        longcountLabel: "長紀曆：",
+        cholqijLabel: "Cholqʼij（Tzolkʼin）日（Kʼicheʼ 名稱）：",
+        haabLabel: "Haabʼ 日（猶加敦語名稱）：",
+        lordLabel: "夜之主：",
+        gregorianLabel: "格里曆日期：",
+        settingsSummary: "Haabʼ 計算設定",
+        haabMode: "Haabʼ 模式：",
+        greatMode: "社群 Gran Wayebʼ 校正",
+        standardMode: "標準連續 365 日 Haabʼ",
+        settingsHint: "Gran Wayebʼ 模式以 2012-12-21 作為 13 日 Gran Wayebʼ 閏期的第 1 日，並在每個 52 Haabʼ 週期後重複校正。標準模式則保留傳統連續 365 日的 Haabʼ 週期。",
+        gregorianHint: "可輸入：2026-09-01、2026.09.01 或 2026/09/01。西元前日期可使用負數年份。",
+        longcountHint: "格式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin，例如 13.0.13.16.2。",
+        noteStandard: "採用 GMT 對應常數 JDN 584283；標準連續 365 日 Haabʼ；Haabʼ 日期以 0 起算（0–19；Wayebʼ 0–4）。",
+        noteGreat: "採用 GMT 對應常數 JDN 584283；社群 Gran Wayebʼ 校正以 2012-12-21 為錨點；一般 winal 的 Haabʼ 日期以 0 起算。",
+        granWayeb: "Gran Wayebʼ",
+        errorGregorianFormat: "請以 YYYY-MM-DD、YYYY.MM.DD 或 YYYY/MM/DD 格式輸入格里曆日期。",
+        errorYear: "格里曆年份必須是非 0 的整數。西元前日期請使用負數年份（例如 -3114）。",
+        errorMonth: "格里曆月份必須介於 1 到 12。",
+        errorMonthDays: "在推算格里曆中，該月份共有 {days} 日。",
+        errorLongcountFormat: "請以 Bʼakʼtun.Kʼatun.Tun.Winal.Kin 格式輸入長紀曆，例如 13.0.13.16.2。",
+        errorLongcountLarge: "長紀曆中有一個數值過大。",
+        errorLongcountRange: "請使用標準係數：Kʼatun 0–19、Tun 0–19、Winal 0–17、Kin 0–19。",
+        footerPrefix: "取得長紀曆的",
+        footerLink: "桌面版",
+        footerSuffix: "。"
+      }
+    };
+
+    let currentLanguage = "en";
+
+    function t(key, replacements = {}) {
+      let text = (TRANSLATIONS[currentLanguage] && TRANSLATIONS[currentLanguage][key])
+        || TRANSLATIONS.en[key]
+        || key;
+      for (const [name, value] of Object.entries(replacements)) {
+        text = text.replaceAll(`{${name}}`, String(value));
+      }
+      return text;
+    }
+
+    function readStoredLanguage() {
+      try {
+        return localStorage.getItem("mayanCalendarLanguage");
+      } catch (_) {
+        // Some browsers restrict localStorage for local file:// pages.
+        return null;
+      }
+    }
+
+    function storeLanguage(language) {
+      try {
+        localStorage.setItem("mayanCalendarLanguage", language);
+      } catch (_) {
+        // Language switching still works for the current session if storage is unavailable.
+      }
+    }
+
+    function detectBrowserLanguage() {
+      const stored = readStoredLanguage();
+      if (stored && TRANSLATIONS[stored]) return stored;
+
+      const preferences = Array.isArray(navigator.languages) && navigator.languages.length
+        ? navigator.languages
+        : [navigator.language || "en"];
+
+      for (const preference of preferences) {
+        const code = String(preference).toLowerCase();
+        if (code.startsWith("quc")) return "quc";
+        if (code.startsWith("es")) return "es";
+        if (code.startsWith("zh")) return "zh-TW";
+        if (code.startsWith("ja")) return "ja";
+        if (code.startsWith("ar")) return "ar";
+        if (code.startsWith("hi")) return "hi";
+        if (code.startsWith("id") || code.startsWith("in-")) return "id";
+        if (code.startsWith("pt")) return "pt";
+        if (code.startsWith("bn")) return "bn";
+        if (code.startsWith("en")) return "en";
+      }
+      return "en";
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = value;
+    }
+
+    function updateConversionTypeUI({ clear = false } = {}) {
+      const type = document.getElementById("conversionType").value;
+      const isGregorian = type === "gregorian";
+      setText("dateInputLabel", isGregorian ? t("gregorianDate") : t("longcountDate"));
+      document.getElementById("dateInput").placeholder = isGregorian ? "2026-09-01" : "13.0.13.16.2";
+      setText("dateHint", isGregorian ? t("gregorianHint") : t("longcountHint"));
+
+      if (clear) {
+        document.getElementById("dateInput").value = "";
+        setText("conversionError", "");
+        document.getElementById("conversionResult").hidden = true;
+      }
+    }
+
+    function applyLanguage(language, { persist = false } = {}) {
+      currentLanguage = TRANSLATIONS[language] ? language : "en";
+      if (persist) storeLanguage(currentLanguage);
+
+      const htmlLang = currentLanguage === "zh-TW" ? "zh-Hant-TW" : currentLanguage;
+      document.documentElement.lang = htmlLang;
+      document.documentElement.dir = currentLanguage === "ar" ? "rtl" : "ltr";
+      document.title = t("documentTitle");
+      document.getElementById("languageSelect").value = currentLanguage;
+
+      setText("languageLabel", t("language"));
+      setText("pageTitle", t("pageTitle"));
+      setText("diaryLabel", t("diaryFormat"));
+      setText("todayLongcountLabel", t("todayLongcount"));
+      setText("todayCholqijLabel", t("todayCholqij"));
+      setText("todayHaabLabel", t("todayHaab"));
+      setText("todayLordLabel", t("todayLord"));
+      setText("converterTitle", t("converterTitle"));
+      setText("conversionQuestion", t("conversionQuestion"));
+      setText("gregorianOption", t("gregorianDate"));
+      setText("longcountOption", t("longcountDate"));
+      setText("convertButton", t("convert"));
+      setText("convertedDateTitle", t("convertedDate"));
+      setText("resultDiaryLabel", t("diaryFormat"));
+      setText("resultLongcountLabel", t("longcountLabel"));
+      setText("resultCholqijLabel", t("cholqijLabel"));
+      setText("resultHaabLabel", t("haabLabel"));
+      setText("resultLordLabel", t("lordLabel"));
+      setText("resultGregorianLabel", t("gregorianLabel"));
+      setText("settingsSummary", t("settingsSummary"));
+      setText("haabModeLabel", t("haabMode"));
+      setText("greatModeOption", t("greatMode"));
+      setText("standardModeOption", t("standardMode"));
+      setText("settingsHint", t("settingsHint"));
+      setText("footerPrefix", t("footerPrefix"));
+      setText("footerLink", t("footerLink"));
+      setText("footerSuffix", t("footerSuffix"));
+
+      const converterHidden = document.getElementById("converter").hidden;
+      setText("toggleConverter", converterHidden ? t("convertDate") : t("closeConverter"));
+      updateConversionTypeUI();
+
+      renderToday();
+      if (!document.getElementById("conversionResult").hidden && document.getElementById("dateInput").value.trim()) {
+        convertEnteredDate();
+      }
+    }
+
+    // ======= Helpers =======
+    function mod(a, m) {
+      return ((a % m) + m) % m;
+    }
+
+    function divmodFloor(a, b) {
+      const q = Math.floor(a / b);
+      return [q, a - q * b];
+    }
+
+    function pad2(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function formatGregorianYear(year) {
+      if (year < 0) return `-${String(Math.abs(year)).padStart(4, "0")}`;
+      return String(year).padStart(4, "0");
+    }
+
+    function formatISO(year, month, day) {
+      return `${formatGregorianYear(year)}-${pad2(month)}-${pad2(day)}`;
+    }
+
+    // Proleptic Gregorian -> JDN.
+    // Negative input years use historical numbering: -1 = 1 BCE, -3114 = 3114 BCE.
+    function gregorianToJDN(year, month, day) {
+      const astronomicalYear = (year < 0) ? year + 1 : year;
+      const a = Math.floor((14 - month) / 12);
+      const y = astronomicalYear + 4800 - a;
+      const m = month + 12 * a - 3;
+      return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4)
+           - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+    }
+
+    // JDN -> proleptic Gregorian, returned with historical numbering (no year 0).
+    function jdnToGregorian(jdn) {
+      let a = jdn + 32044;
+      const b = Math.floor((4 * a + 3) / 146097);
+      const c = a - Math.floor(146097 * b / 4);
+      const d = Math.floor((4 * c + 3) / 1461);
+      const e = c - Math.floor(1461 * d / 4);
+      const m = Math.floor((5 * e + 2) / 153);
+
+      const day = e - Math.floor((153 * m + 2) / 5) + 1;
+      const month = m + 3 - 12 * Math.floor(m / 10);
+      let astronomicalYear = 100 * b + d - 4800 + Math.floor(m / 10);
+      const year = (astronomicalYear <= 0) ? astronomicalYear - 1 : astronomicalYear;
+
+      return { y: year, m: month, d: day, iso: formatISO(year, month, day) };
+    }
+
+    function todayLocalYMD() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth() + 1;
+      const d = now.getDate();
+      return { y, m, d, iso: formatISO(y, m, d) };
+    }
+
+    function isLeapYearHistorical(year) {
+      const astronomicalYear = (year < 0) ? year + 1 : year;
+      return (astronomicalYear % 4 === 0 && astronomicalYear % 100 !== 0) || astronomicalYear % 400 === 0;
+    }
+
+    function daysInGregorianMonth(year, month) {
+      const lengths = [31, isLeapYearHistorical(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      return lengths[month - 1] || 0;
+    }
+
+    // ======= Core Long Count / Calendar Round calculations =======
+    function jdnToLongCount(jdn) {
+      const days = jdn - CORR_JDN;
+      let rem, b, k, t, u, kin;
+      [b, rem] = divmodFloor(days, 144000);
+      [k, rem] = divmodFloor(rem, 7200);
+      [t, rem] = divmodFloor(rem, 360);
+      [u, kin] = divmodFloor(rem, 20);
+      return { b, k, t, u, kin, days };
+    }
+
+    function longCountToJDN(b, k, t, u, kin) {
+      const days = b * 144000 + k * 7200 + t * 360 + u * 20 + kin;
+      return CORR_JDN + days;
+    }
+
+    function tzolkinFromDays(days) {
+      const nameIdx = mod(TZ_START_NAME_INDEX + days, 20);
+      const number = mod((TZ_START_NUMBER - 1) + days, 13) + 1;
+      return { name: TZOLKIN_NAMES[nameIdx], number };
+    }
+
+    function standardHaabFromDays(days) {
+      const haabIndex = mod(HAAB_START_ABS_INDEX + days, 365);
+      const month = Math.floor(haabIndex / 20);
+      const dayZero = haabIndex % 20;
+      const displayDay = (HAAB_DAY_BASE === 0) ? dayZero : dayZero + 1;
+      return { month: HAAB_MONTHS[month], day: displayDay, greatWayeb: false };
+    }
+
+    function greatWayebHaabFromJDN(jdn) {
+      const anchorJDN = gregorianToJDN(
+        GREAT_WAYEB_ANCHOR_YEAR,
+        GREAT_WAYEB_ANCHOR_MONTH,
+        GREAT_WAYEB_ANCHOR_DAY_OF_MONTH
+      );
+
+      // Shift the mathematical cycle so the configured anchor can be any Gran Wayeb' day 1..13.
+      const effectiveStartJDN = anchorJDN - (GREAT_WAYEB_ANCHOR_DAY - 1);
+      const position = mod(jdn - effectiveStartJDN, GREAT_WAYEB_CYCLE_DAYS);
+
+      if (position < GREAT_WAYEB_DAYS) {
+        return {
+          month: t("granWayeb"),
+          day: position + 1,
+          greatWayeb: true
+        };
+      }
+
+      // After the 13 intercalary days, the ordinary 365-day Haab' resumes at 0 Pop.
+      // A 52-year block contains exactly 52 * 365 ordinary Haab' days.
+      const regularPosition = mod(position - GREAT_WAYEB_DAYS, REGULAR_HAAB_DAYS);
+      const month = Math.floor(regularPosition / 20);
+      const dayZero = regularPosition % 20;
+      const displayDay = (HAAB_DAY_BASE === 0) ? dayZero : dayZero + 1;
+
+      return { month: HAAB_MONTHS[month], day: displayDay, greatWayeb: false };
+    }
+
+    function haabForJDN(jdn, days) {
+      const mode = document.getElementById("haabMode")?.value || "great";
+      return mode === "standard" ? standardHaabFromDays(days) : greatWayebHaabFromJDN(jdn);
+    }
+
+    function lordFromDays(days) {
+      const num = mod((LORD_START_NUMBER - 1) + days, 9) + 1;
+      return `G${num}`;
+    }
+
+    function calendarDataFromJDN(jdn) {
+      const greg = jdnToGregorian(jdn);
+      const { b, k, t, u, kin, days } = jdnToLongCount(jdn);
+      const tz = tzolkinFromDays(days);
+      const ha = haabForJDN(jdn, days);
+      const lord = lordFromDays(days);
+
+      const lcNums = `${b}.${k}.${t}.${u}.${kin}`;
+      const longCount = `${b} Bʼakʼtun, ${k} Kʼatun, ${t} Tun, ${u} Winal, ${kin} Kin`;
+      const cholqijFull = `${tz.number} ${tz.name}`;
+      const haabFull = `${ha.day} ${ha.month}`;
+      const diary = `${lcNums} - ${cholqijFull} - ${haabFull} - ${lord} - ${greg.iso}`;
+
+      return {
+        jdn,
+        greg,
+        b, k, t, u, kin,
+        lcNums,
+        longCount,
+        cholqijFull,
+        haabFull,
+        lord,
+        diary
+      };
+    }
+
+    // ======= Parsing / validation =======
+    function parseGregorianInput(text) {
+      const s = text.trim();
+      const match = s.match(/^(-?\d+)[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
+      if (!match) {
+        throw new Error(t("errorGregorianFormat"));
+      }
+
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+
+      if (!Number.isSafeInteger(year) || year === 0) {
+        throw new Error(t("errorYear"));
+      }
+      if (month < 1 || month > 12) {
+        throw new Error(t("errorMonth"));
+      }
+      const maxDay = daysInGregorianMonth(year, month);
+      if (day < 1 || day > maxDay) {
+        throw new Error(t("errorMonthDays", { days: maxDay }));
+      }
+
+      return { year, month, day };
+    }
+
+    function parseLongCountInput(text) {
+      const s = text.trim();
+      const match = s.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+      if (!match) {
+        throw new Error(t("errorLongcountFormat"));
+      }
+
+      const [b, k, t, u, kin] = match.slice(1).map(Number);
+      if (![b, k, t, u, kin].every(Number.isSafeInteger)) {
+        throw new Error(t("errorLongcountLarge"));
+      }
+      if (k < 0 || k > 19 || t < 0 || t > 19 || u < 0 || u > 17 || kin < 0 || kin > 19) {
+        throw new Error(t("errorLongcountRange"));
+      }
+
+      return { b, k, t, u, kin };
+    }
+
+    // ======= Rendering =======
+    function renderToday() {
+      const { y, m, d } = todayLocalYMD();
+      const data = calendarDataFromJDN(gregorianToJDN(y, m, d));
+
+      document.getElementById("longcount").innerText = data.longCount;
+      document.getElementById("cholqij").innerText = data.cholqijFull;
+      document.getElementById("haab").innerText = data.haabFull;
+      document.getElementById("lord").innerText = data.lord;
+      document.getElementById("diary").innerText = data.diary;
+
+      const mode = document.getElementById("haabMode").value;
+      document.getElementById("calculationNote").innerText = mode === "standard"
+        ? t("noteStandard")
+        : t("noteGreat");
+    }
+
+    function renderConverted(data) {
+      document.getElementById("resultDiary").innerText = data.diary;
+      document.getElementById("resultLongcount").innerText = data.longCount;
+      document.getElementById("resultCholqij").innerText = data.cholqijFull;
+      document.getElementById("resultHaab").innerText = data.haabFull;
+      document.getElementById("resultLord").innerText = data.lord;
+      document.getElementById("resultGregorian").innerText = data.greg.iso;
+      document.getElementById("conversionResult").hidden = false;
+    }
+
+    function convertEnteredDate() {
+      const type = document.getElementById("conversionType").value;
+      const text = document.getElementById("dateInput").value;
+      const errorBox = document.getElementById("conversionError");
+      const resultBox = document.getElementById("conversionResult");
+      errorBox.innerText = "";
+      resultBox.hidden = true;
+
+      try {
+        let jdn;
+        if (type === "gregorian") {
+          const { year, month, day } = parseGregorianInput(text);
+          jdn = gregorianToJDN(year, month, day);
+        } else {
+          const { b, k, t, u, kin } = parseLongCountInput(text);
+          jdn = longCountToJDN(b, k, t, u, kin);
+        }
+        renderConverted(calendarDataFromJDN(jdn));
+      } catch (err) {
+        errorBox.innerText = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    // ======= Interface events =======
+    document.getElementById("toggleConverter").addEventListener("click", () => {
+      const panel = document.getElementById("converter");
+      panel.hidden = !panel.hidden;
+      setText("toggleConverter", panel.hidden ? t("convertDate") : t("closeConverter"));
+      if (!panel.hidden) document.getElementById("dateInput").focus();
+    });
+
+    document.getElementById("conversionType").addEventListener("change", () => {
+      updateConversionTypeUI({ clear: true });
+      document.getElementById("dateInput").focus();
+    });
+
+    document.getElementById("languageSelect").addEventListener("change", (event) => {
+      applyLanguage(event.target.value, { persist: true });
+    });
+
+    document.getElementById("convertButton").addEventListener("click", convertEnteredDate);
+    document.getElementById("dateInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") convertEnteredDate();
+    });
+
+    document.getElementById("haabMode").addEventListener("change", () => {
+      renderToday();
+      // Re-run the current conversion, if one is visible, so the Haab' output changes immediately.
+      if (!document.getElementById("conversionResult").hidden && document.getElementById("dateInput").value.trim()) {
+        convertEnteredDate();
+      }
+    });
+
+    applyLanguage(detectBrowserLanguage());
+  </script>
+
+</body>
+</html>
