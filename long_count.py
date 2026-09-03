@@ -1,5 +1,8 @@
 import argparse
 import datetime
+import os
+import re
+import sys
 from typing import Tuple, Optional
 
 # =========================
@@ -8,22 +11,41 @@ from typing import Tuple, Optional
 
 MAYA_EPOCH_JDN = 584283  # default: GMT correlation
 HAAB_DAY_BASE = 0        # 0 => 0..19 (Wayebʼ 0..4) [DEFAULT], 1 => 1..20 (Wayebʼ 1..5)
+HAAB_MODE = "great"      # "great" = Community Gran Wayebʼ [DEFAULT], "standard" = continuous 365-day Haabʼ
 
-# Haabʼ and Tzolkʼin names
+# Haabʼ and Cholqʼij names
 HAAB_MONTHS = [
     "Pop", "Wo", "Sip", "Sotzʼ", "Sek", "Xul", "Yaxkʼin", "Mol", "Chʼen", "Yax",
     "Sak", "Keh", "Mak", "Kʼankʼin", "Muwan", "Pax", "Kʼayab", "Kumkʼu", "Wayebʼ"
 ]
-TZOLKIN_NAMES = [
-    "Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Kame", "Kej", "Qʼanil", "Toj", "Tzʼiʼ",
+CHOLQIJ_NAMES = [
+    "Imox", "Iqʼ", "Aqʼabʼal", "Kʼat", "Kan", "Keme", "Kej", "Qʼanil", "Toj", "Tzʼiʼ",
     "Bʼatzʼ", "E", "Aj", "Iʼx", "Tzʼikin", "Ajmaq", "Noʼj", "Tijax", "Kawoq", "Ajpuʼ"
 ]
 
 # Epoch alignments for 0.0.0.0.0: 4 Ajpuʼ, 8 Kumkʼu, G9
-_TZ_START_NUMBER = 4
-_TZ_START_NAME_INDEX = TZOLKIN_NAMES.index("Ajpuʼ")  # 19
-_HAAB_START_ABS_INDEX = 17 * 20 + 8  # 8 Kumkʼu (0-based day)
+_CHOLQIJ_START_NUMBER = 4
+_CHOLQIJ_START_NAME_INDEX = CHOLQIJ_NAMES.index("Ajpuʼ")  # 19
+# This is the Haabʼ position at 0.0.0.0.0, not at 13.0.0.0.0. Advancing
+# 13 Bʼakʼtuns makes 13.0.0.0.0 equal 3 Kʼankʼin in standard mode.
+_HAAB_START_ABS_INDEX = 17 * 20 + 8  # 8 Kumkʼu at 0.0.0.0.0 (0-based day)
 _LORD_START_NUMBER = 9
+
+# Community Gran Wayebʼ configuration, anchored to the Ajqʼijʼs supplied count:
+# 2013-01-02 = 0 Gran Wayebʼ; 2013-01-14 = 12 Gran Wayebʼ; 2013-01-15 = 0 Pop.
+GREAT_WAYEB_ANCHOR_YEAR = 2013
+GREAT_WAYEB_ANCHOR_MONTH = 1
+GREAT_WAYEB_ANCHOR_DAY_OF_MONTH = 2
+GREAT_WAYEB_DAYS = 13
+HAAB_YEARS_PER_GREAT_CYCLE = 52
+REGULAR_HAAB_DAYS = 365
+REGULAR_WAYEB_DAYS = 5
+
+# Gran Wayebʼ replaces the final regular five-day Wayebʼ of the 52-Haab block.
+ORDINARY_DAYS_PER_GREAT_CYCLE = (
+    HAAB_YEARS_PER_GREAT_CYCLE * REGULAR_HAAB_DAYS - REGULAR_WAYEB_DAYS
+)
+GREAT_WAYEB_CYCLE_DAYS = ORDINARY_DAYS_PER_GREAT_CYCLE + GREAT_WAYEB_DAYS
 
 # ===============
 # Helper / Math
@@ -138,24 +160,64 @@ def long_count_to_jdn(baktun: int, katun: int, tun: int, uinal: int, kin: int, s
 
 
 # ===========================
-# Tzolkʼin / Haabʼ / Night 9
+# Cholqʼij / Haabʼ / Night 9
 # ===========================
 
-def tzolkin_from_jdn(jdn: int) -> Tuple[str, int]:
+def cholqij_from_jdn(jdn: int) -> Tuple[str, int]:
+    """Return the Kʼicheʼ Cholqʼij day name and number for a JDN."""
     days = jdn - MAYA_EPOCH_JDN
-    name_idx = (_TZ_START_NAME_INDEX + days) % 20
-    number = ((_TZ_START_NUMBER - 1 + days) % 13) + 1
-    return TZOLKIN_NAMES[name_idx], number
+    name_idx = (_CHOLQIJ_START_NAME_INDEX + days) % 20
+    number = ((_CHOLQIJ_START_NUMBER - 1 + days) % 13) + 1
+    return CHOLQIJ_NAMES[name_idx], number
 
 
-def haab_from_jdn(jdn: int) -> Tuple[str, int]:
-    """Returns (month_name, day_number) with day base per HAAB_DAY_BASE (0 or 1)."""
+def standard_haab_from_jdn(jdn: int) -> Tuple[str, int]:
+    """Return the uninterrupted 365-day Haabʼ for a JDN."""
     days = jdn - MAYA_EPOCH_JDN
-    haab_index = (_HAAB_START_ABS_INDEX + days) % 365  # 0..364
+    haab_index = (_HAAB_START_ABS_INDEX + days) % REGULAR_HAAB_DAYS
     month = haab_index // 20
     day_zero_based = haab_index % 20   # 0..19 (Wayebʼ 0..4)
     day_display = day_zero_based if HAAB_DAY_BASE == 0 else day_zero_based + 1
     return HAAB_MONTHS[month], day_display
+
+
+def great_wayeb_haab_from_jdn(jdn: int) -> Tuple[str, int]:
+    """
+    Return the Community Gran Wayebʼ Haabʼ label for a JDN.
+
+    Gran Wayebʼ contains 13 days numbered 0..12 and replaces the regular
+    five-day Wayebʼ at the end of each 52-Haab block. The modulo operation
+    extends the supplied anchor sequence backward and forward indefinitely.
+    """
+    anchor_jdn = gregorian_to_jdn(
+        GREAT_WAYEB_ANCHOR_YEAR,
+        GREAT_WAYEB_ANCHOR_MONTH,
+        GREAT_WAYEB_ANCHOR_DAY_OF_MONTH,
+    )
+    position = (jdn - anchor_jdn) % GREAT_WAYEB_CYCLE_DAYS
+
+    if position < GREAT_WAYEB_DAYS:
+        # Gran Wayebʼ numbering is fixed at 0..12, independently of HAAB_DAY_BASE.
+        return "Gran Wayebʼ", position
+
+    # After 12 Gran Wayebʼ, the ordinary Haabʼ resumes at 0 Pop. Between
+    # special periods are 51 complete 365-day Haabʼ years plus 360 days of
+    # the 52nd year; its regular 0..4 Wayebʼ is replaced by Gran Wayebʼ.
+    regular_position = (position - GREAT_WAYEB_DAYS) % REGULAR_HAAB_DAYS
+    month = regular_position // 20
+    day_zero_based = regular_position % 20
+    day_display = day_zero_based if HAAB_DAY_BASE == 0 else day_zero_based + 1
+    return HAAB_MONTHS[month], day_display
+
+
+def haab_from_jdn(jdn: int, mode: Optional[str] = None) -> Tuple[str, int]:
+    """Return the Haabʼ label using Community Gran Wayebʼ or standard mode."""
+    selected_mode = HAAB_MODE if mode is None else mode
+    if selected_mode == "standard":
+        return standard_haab_from_jdn(jdn)
+    if selected_mode == "great":
+        return great_wayeb_haab_from_jdn(jdn)
+    raise ValueError("Haabʼ mode must be 'great' or 'standard'.")
 
 
 def lord_of_the_night_from_jdn(jdn: int) -> str:
@@ -175,11 +237,31 @@ def is_leap_year_gregorian(year: int) -> bool:
 
 
 def validate_gregorian_date(year: int, month: int, day: int) -> bool:
-    if not (1 <= month <= 12) or day < 1:
+    if year == 0 or not (1 <= month <= 12) or day < 1:
         return False
     dim = [31, 29 if is_leap_year_gregorian(year) else 28, 31, 30, 31, 30,
            31, 31, 30, 31, 30, 31]
     return day <= dim[month - 1]
+
+
+def parse_gregorian_input(text: str) -> Tuple[int, int, int]:
+    """Parse the same Gregorian formats accepted by the HTML converter."""
+    match = re.fullmatch(r"(-?\d+)[./-](\d{1,2})[./-](\d{1,2})", text.strip())
+    if not match:
+        raise ValueError("Use YYYY-MM-DD, YYYY.MM.DD, or YYYY/MM/DD.")
+
+    year, month, day = map(int, match.groups())
+    if not validate_gregorian_date(year, month, day):
+        raise ValueError("Enter a valid proleptic Gregorian date without year zero.")
+    return year, month, day
+
+
+def parse_long_count_input(text: str) -> Tuple[int, int, int, int, int]:
+    """Parse five Long Count components separated by dots or whitespace."""
+    parts = re.split(r"(?:\s*\.\s*|\s+)", text.strip())
+    if len(parts) != 5 or any(not re.fullmatch(r"-?\d+", part) for part in parts):
+        raise ValueError("Use Bʼakʼtun.Kʼatun.Tun.Winal.Kin, for example 13.0.0.0.0.")
+    return tuple(map(int, parts))
 
 
 # ============
@@ -198,16 +280,16 @@ def display_from_jdn(jdn: int) -> None:
         )
         display_extended_from_jdn(jdn)
         return
-    tz_name, tz_num = tzolkin_from_jdn(jdn)
+    cholqij_name, cholqij_num = cholqij_from_jdn(jdn)
     haab_month, haab_day = haab_from_jdn(jdn)
     lord = lord_of_the_night_from_jdn(jdn)
     y, m, d = jdn_to_gregorian(jdn)
 
-    diary = f"{'.'.join(map(str, lc))} - {tz_num} {tz_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
+    diary = f"{'.'.join(map(str, lc))} - {cholqij_num} {cholqij_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
     print(f"\nDiary Format:\n{diary}")
     print("\nLong Count:")
     print(f"{lc[0]} Bʼakʼtun, {lc[1]} Kʼatun, {lc[2]} Tun, {lc[3]} Winal, {lc[4]} Kin")
-    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {tz_num} {tz_name}")
+    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {cholqij_num} {cholqij_name}")
     print(f"Haabʼ (Yucatec name): {haab_day} {haab_month}")
     print(f"Lord of the Night: {lord}")
     print(f"Gregorian (proleptic): {y}-{m:02d}-{d:02d}")
@@ -226,12 +308,12 @@ def display_extended_from_jdn(jdn: int) -> None:
             "It is shown as 21, 22, 200... Alautun (and beyond) as a practical extension, "
             "but this is not an official/standard way of displaying the date."
         )
-    tz_name, tz_num = tzolkin_from_jdn(jdn)
+    cholqij_name, cholqij_num = cholqij_from_jdn(jdn)
     haab_month, haab_day = haab_from_jdn(jdn)
     lord = lord_of_the_night_from_jdn(jdn)
     y, m, d = jdn_to_gregorian(jdn)
 
-    diary = f"{format_extended_lc(ext_lc)} - {tz_num} {tz_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
+    diary = f"{format_extended_lc(ext_lc)} - {cholqij_num} {cholqij_name} - {haab_day} {haab_month} - {lord} - {y}-{m:02d}-{d:02d}"
     print(f"\nDiary Format (Extended):\n{diary}")
 
     print("\nExtended Long Count:")
@@ -239,17 +321,330 @@ def display_extended_from_jdn(jdn: int) -> None:
         f"{ext_lc[0]} Alautun, {ext_lc[1]} Kʼinchiltun, {ext_lc[2]} Kalabtun, {ext_lc[3]} Piktun, "
         f"{ext_lc[4]} Bʼakʼtun, {ext_lc[5]} Kʼatun, {ext_lc[6]} Tun, {ext_lc[7]} Winal, {ext_lc[8]} Kin"
     )
-    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {tz_num} {tz_name}")
+    print(f"Cholqʼij (Tzolkʼin) (Kʼicheʼ name): {cholqij_num} {cholqij_name}")
     print(f"Haabʼ (Yucatec name): {haab_day} {haab_month}")
     print(f"Lord of the Night: {lord}")
     print(f"Gregorian (proleptic): {y}-{m:02d}-{d:02d}")
 
 
-def show_welcome_message():
+def haab_mode_label(mode: Optional[str] = None) -> str:
+    selected_mode = HAAB_MODE if mode is None else mode
+    if selected_mode == "great":
+        return "Community Gran Wayebʼ adjustment"
+    return "Standard continuous 365-day Haabʼ"
+
+
+def current_settings_text() -> str:
+    base_label = "0-based" if HAAB_DAY_BASE == 0 else "1-based"
+    return (
+        f"Haabʼ: {haab_mode_label()} | Ordinary Haabʼ days: {base_label} | "
+        f"Correlation JDN: {MAYA_EPOCH_JDN}"
+    )
+
+
+def clear_terminal() -> None:
+    """Clear an interactive terminal without spawning another process."""
+    if sys.stdout.isatty():
+        print("\033[2J\033[H", end="", flush=True)
+
+
+def _read_menu_key() -> str:
+    """Read one menu key, including arrow keys, on Windows or POSIX terminals."""
+    if os.name == "nt":
+        import msvcrt
+
+        key = msvcrt.getwch()
+        if key in ("\x00", "\xe0"):
+            return {"H": "up", "P": "down", "G": "home", "O": "end"}.get(
+                msvcrt.getwch(), "other"
+            )
+        if key == "\r":
+            return "enter"
+        if key == "\x03":
+            raise KeyboardInterrupt
+        return key.lower()
+
+    import termios
+    import tty
+
+    file_descriptor = sys.stdin.fileno()
+    previous_settings = termios.tcgetattr(file_descriptor)
+    try:
+        tty.setraw(file_descriptor)
+        key = sys.stdin.read(1)
+        if key == "\x03":
+            raise KeyboardInterrupt
+        if key in ("\r", "\n"):
+            return "enter"
+        if key == "\x1b":
+            # Arrow keys arrive as a three-character escape sequence. Reading the
+            # two remaining characters directly is more reliable across terminals.
+            sequence = sys.stdin.read(2)
+            return {
+                "[A": "up",
+                "OA": "up",
+                "[B": "down",
+                "OB": "down",
+                "[H": "home",
+                "OH": "home",
+                "[F": "end",
+                "OF": "end",
+            }.get(sequence, "other")
+        return key.lower()
+    finally:
+        termios.tcsetattr(file_descriptor, termios.TCSADRAIN, previous_settings)
+
+
+def _numbered_menu(title: str, options: Tuple[str, ...], default_index: int) -> Optional[int]:
+    """Fallback menu for redirected input and terminals without raw-key support."""
+    while True:
+        print(f"\n{title}")
+        for index, option in enumerate(options, start=1):
+            default_marker = " [default]" if index - 1 == default_index else ""
+            print(f"  {index}. {option}{default_marker}")
+        response = input("Select a number, press Enter for the default, or Q to go back: ").strip().lower()
+        if not response:
+            return default_index
+        if response in ("q", "quit", "back"):
+            return None
+        if response.isdigit() and 1 <= int(response) <= len(options):
+            return int(response) - 1
+        print("Please select one of the listed options.")
+
+
+def select_menu(
+    title: str,
+    options: Tuple[str, ...],
+    default_index: int = 0,
+    context: Optional[str] = None,
+) -> Optional[int]:
+    """Display an arrow-key menu, with a numbered-input fallback."""
+    if not options:
+        raise ValueError("A menu must contain at least one option.")
+
+    selected = max(0, min(default_index, len(options) - 1))
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        if context:
+            print(context)
+        return _numbered_menu(title, options, selected)
+
+    while True:
+        clear_terminal()
+        print("MAYA CALENDAR\n")
+        print(title)
+        if context:
+            print(f"{context}\n")
+        for index, option in enumerate(options):
+            marker = "❯" if index == selected else " "
+            print(f" {marker} {index + 1}. {option}")
+        print("\nUse ↑/↓ and Enter. Number keys also work; Q goes back.")
+
+        key = _read_menu_key()
+        if key in ("up", "k", "w"):
+            selected = (selected - 1) % len(options)
+        elif key in ("down", "j", "s"):
+            selected = (selected + 1) % len(options)
+        elif key == "home":
+            selected = 0
+        elif key == "end":
+            selected = len(options) - 1
+        elif key == "enter":
+            return selected
+        elif key == "q":
+            return None
+        elif key.isdigit() and key != "0" and int(key) <= len(options):
+            return int(key) - 1
+
+
+def pause_for_menu() -> None:
+    try:
+        input("\nPress Enter to return to the menu...")
+    except EOFError:
+        pass
+
+
+def show_date_screen(jdn: int, title: str, extended: bool = False) -> None:
+    clear_terminal()
+    print(f"MAYA CALENDAR — {title}")
+    print(current_settings_text())
+    if extended:
+        display_extended_from_jdn(jdn)
+    else:
+        display_from_jdn(jdn)
+    pause_for_menu()
+
+
+def choose_haab_mode(title: str = "Choose the Haabʼ calculation") -> bool:
+    """Let the user change the session Haabʼ mode. Return False if cancelled."""
+    global HAAB_MODE
+    options = (
+        "Community Gran Wayebʼ — replaces Wayebʼ with 13 days (0–12) every 52 Haabʼ",
+        "Standard Haabʼ — continuous 365-day cycle with Wayebʼ 0–4",
+    )
+    choice = select_menu(title, options, 0 if HAAB_MODE == "great" else 1)
+    if choice is None:
+        return False
+    HAAB_MODE = "great" if choice == 0 else "standard"
+    return True
+
+
+def choose_haab_day_base() -> bool:
+    """Let the user change ordinary Haabʼ numbering. Gran Wayebʼ stays 0..12."""
+    global HAAB_DAY_BASE
+    options = (
+        "Zero-based — ordinary periods 0–19 and Wayebʼ 0–4",
+        "One-based — ordinary periods 1–20 and Wayebʼ 1–5",
+    )
+    choice = select_menu(
+        "Choose ordinary Haabʼ day numbering",
+        options,
+        HAAB_DAY_BASE,
+        "Gran Wayebʼ remains numbered 0–12 in both settings.",
+    )
+    if choice is None:
+        return False
+    HAAB_DAY_BASE = choice
+    return True
+
+
+def change_correlation() -> bool:
+    global MAYA_EPOCH_JDN
+    clear_terminal()
+    print("MAYA CALENDAR — Correlation setting\n")
+    print(f"Current correlation JDN: {MAYA_EPOCH_JDN}")
+    try:
+        response = input(
+            "Enter a new integer correlation, press Enter to keep it, or Q to go back: "
+        ).strip()
+    except EOFError:
+        return False
+    if not response or response.lower() == "q":
+        return False
+    try:
+        MAYA_EPOCH_JDN = int(response)
+    except ValueError:
+        print("The correlation must be an integer.")
+        pause_for_menu()
+        return False
+    return True
+
+
+def settings_menu() -> bool:
+    """Edit session settings and report whether a setting was selected."""
+    changed = False
+    while True:
+        options = (
+            f"Haabʼ mode — {haab_mode_label()}",
+            f"Ordinary Haabʼ numbering — {'0-based' if HAAB_DAY_BASE == 0 else '1-based'}",
+            f"Correlation constant — JDN {MAYA_EPOCH_JDN}",
+            "Return to main menu",
+        )
+        choice = select_menu("Settings", options, context=current_settings_text())
+        if choice is None or choice == 3:
+            return changed
+        if choice == 0:
+            changed = choose_haab_mode("Change the Haabʼ calculation") or changed
+        elif choice == 1:
+            changed = choose_haab_day_base() or changed
+        elif choice == 2:
+            changed = change_correlation() or changed
+
+
+def prompt_for_gregorian_date() -> Optional[int]:
+    while True:
+        clear_terminal()
+        print("MAYA CALENDAR — Gregorian → Maya calendar\n")
+        print("Accepted formats: 2026-09-01, 2026.09.01, or 2026/09/01")
+        print("Use a negative year for BCE dates; year zero is not accepted.")
+        try:
+            response = input("\nGregorian date (or Q to go back): ").strip()
+        except EOFError:
+            return None
+        if response.lower() == "q":
+            return None
+        try:
+            year, month, day = parse_gregorian_input(response)
+            return gregorian_to_jdn(year, month, day)
+        except ValueError as error:
+            print(f"\nError: {error}")
+            pause_for_menu()
+
+
+def prompt_for_long_count() -> Optional[int]:
+    while True:
+        clear_terminal()
+        print("MAYA CALENDAR — Long Count → Gregorian\n")
+        print("Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin")
+        print("Example: 13.0.0.0.0")
+        print("Out-of-range components are normalized automatically in interactive mode.")
+        try:
+            response = input("\nLong Count (or Q to go back): ").strip()
+        except EOFError:
+            return None
+        if response.lower() == "q":
+            return None
+        try:
+            components = parse_long_count_input(response)
+            normalized = normalize_long_count(*components)
+            if components != normalized:
+                print(
+                    f"\nNormalized Long Count: {'.'.join(map(str, normalized))}"
+                )
+                pause_for_menu()
+            return long_count_to_jdn(*components, strict=False)
+        except ValueError as error:
+            print(f"\nError: {error}")
+            pause_for_menu()
+
+
+def run_interactive() -> None:
+    """Run the browser-like terminal interface used when no conversion flag is passed."""
+    if not choose_haab_mode("Welcome — choose the Haabʼ calculation for this session"):
+        return
+
     today = datetime.date.today()
-    print(f"Welcome! Todayʼs date is {today.strftime('%Y-%m-%d')}.\n")
-    jdn_today = gregorian_to_jdn(today.year, today.month, today.day)
-    display_from_jdn(jdn_today)
+    today_jdn = gregorian_to_jdn(today.year, today.month, today.day)
+    last_jdn = today_jdn
+    show_date_screen(today_jdn, "Today")
+
+    main_options = (
+        "Show todayʼs date",
+        "Convert a Gregorian date",
+        "Convert a Long Count date",
+        "Show the last date in Extended Long Count format",
+        "Settings",
+        "Exit",
+    )
+
+    while True:
+        year, month, day = jdn_to_gregorian(last_jdn)
+        context = (
+            f"{current_settings_text()}\n"
+            f"Last displayed date: {year}-{month:02d}-{day:02d}"
+        )
+        choice = select_menu("Main menu", main_options, context=context)
+        if choice is None or choice == 5:
+            clear_terminal()
+            print("Thank you for using the Maya Calendar converter.")
+            return
+        if choice == 0:
+            last_jdn = today_jdn
+            show_date_screen(last_jdn, "Today")
+        elif choice == 1:
+            converted_jdn = prompt_for_gregorian_date()
+            if converted_jdn is not None:
+                last_jdn = converted_jdn
+                show_date_screen(last_jdn, "Converted date")
+        elif choice == 2:
+            converted_jdn = prompt_for_long_count()
+            if converted_jdn is not None:
+                last_jdn = converted_jdn
+                show_date_screen(last_jdn, "Converted date")
+        elif choice == 3:
+            show_date_screen(last_jdn, "Extended Long Count", extended=True)
+        elif choice == 4:
+            if settings_menu():
+                show_date_screen(last_jdn, "Updated settings")
 
 
 # ======
@@ -258,7 +653,7 @@ def show_welcome_message():
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Convert between Gregorian and Mayan calendars (Long Count, Tzolkʼin, Haabʼ, Night Lords)."
+        description="Convert between Gregorian and Maya calendars (Long Count, Cholqʼij, Haabʼ, Night Lords)."
     )
     parser.add_argument(
         "--corr", type=int, default=584283,
@@ -266,7 +661,17 @@ def parse_args():
     )
     parser.add_argument(
         "--haab-day-base", type=int, choices=[0, 1], default=0,
-        help="Haabʼ day numbering base: 0 = 0..19/0..4 (default), 1 = 1..20/1..5."
+        help=(
+            "Ordinary Haabʼ day numbering: 0 = 0..19/0..4 (default), "
+            "1 = 1..20/1..5. Gran Wayebʼ remains 0..12."
+        ),
+    )
+    parser.add_argument(
+        "--haab-mode", choices=["great", "standard"], default="great",
+        help=(
+            "Haabʼ calculation: 'great' = Community Gran Wayebʼ replacement "
+            "(default), 'standard' = continuous 365-day Haabʼ."
+        ),
     )
 
     # Mutually exclusive non-interactive modes
@@ -294,15 +699,18 @@ def parse_args():
 
 
 def main():
-    global MAYA_EPOCH_JDN, HAAB_DAY_BASE
+    global MAYA_EPOCH_JDN, HAAB_DAY_BASE, HAAB_MODE
     args = parse_args()
     MAYA_EPOCH_JDN = args.corr
     HAAB_DAY_BASE = args.haab_day_base
-
-    print(f"[Using correlation JDN = {MAYA_EPOCH_JDN}, Haabʼ day base = {HAAB_DAY_BASE}]")
+    HAAB_MODE = args.haab_mode
 
     # Non-interactive modes
     if args.from_gregorian:
+        print(
+            f"[Using correlation JDN = {MAYA_EPOCH_JDN}, "
+            f"Haabʼ mode = {HAAB_MODE}, Haabʼ day base = {HAAB_DAY_BASE}]"
+        )
         y, m, d = args.from_gregorian
         if not validate_gregorian_date(y, m, d):
             print("Invalid Gregorian date.")
@@ -312,6 +720,10 @@ def main():
         return
 
     if args.from_lc:
+        print(
+            f"[Using correlation JDN = {MAYA_EPOCH_JDN}, "
+            f"Haabʼ mode = {HAAB_MODE}, Haabʼ day base = {HAAB_DAY_BASE}]"
+        )
         b, k, t, u, kin = args.from_lc
         try:
             jdn = long_count_to_jdn(b, k, t, u, kin, strict=args.strict_lc)
@@ -321,78 +733,12 @@ def main():
         display_from_jdn(jdn)
         return
 
-    # Interactive mode (fallback)
-    show_welcome_message()
-    # Track the most recently displayed/converted date so extended output matches the user's last date.
-    today = datetime.date.today()
-    last_jdn = gregorian_to_jdn(today.year, today.month, today.day)
-    while True:
-        mode = input("\nChoose input mode to convert a new date: [G]regorian, [L]ong Count, or [N]one (show extended today / exit): ").strip().lower()
-        if mode.startswith('g'):
-            try:
-                year = int(input("Enter the year (e.g., 2024, -200 for 200 BCE): "))
-                month = int(input("Enter the month (1-12): "))
-                day = int(input("Enter the day (1-31): "))
-                if not validate_gregorian_date(year, month, day):
-                    print("Invalid date entered. Please enter a valid Gregorian date.")
-                    continue
-                jdn = gregorian_to_jdn(year, month, day)
-                last_jdn = jdn
-            except ValueError:
-                print("Invalid input. Please enter numeric values for year, month, and day.")
-                continue
-        elif mode.startswith('l'):
-            try:
-                b = int(input("Bʼakʼtun (can be negative): "))
-                k = int(input("Kʼatun (any int; normalized): "))
-                t = int(input("Tun (any int; normalized): "))
-                u = int(input("Winal (any int; normalized): "))
-                kin = int(input("Kin (any int; normalized): "))
-
-                # Normalize automatically in interactive mode
-                jdn = long_count_to_jdn(b, k, t, u, kin, strict=False)
-                last_jdn = jdn
-            except ValueError:
-                print("Invalid input. Please enter integer values for Long Count components.")
-                continue
-        elif mode.startswith('n'):
-            # Skip conversion and optionally show *today* in the extended format.
-            show_ext = input(
-                "Would you like to show today's date in the extended format (Piktun, Kalabtun, K'inchiltun, Alautun)? (yes/y or no/n): "
-            ).strip().lower()
-
-            if show_ext in ("yes", "y"):
-                today = datetime.date.today()
-                jdn_today = gregorian_to_jdn(today.year, today.month, today.day)
-                display_extended_from_jdn(jdn_today)
-
-            break
-        else:
-            print("Please choose 'G', 'L', or 'N'.")
-            continue
-
-        display_from_jdn(jdn)
-
-        another = input("Do you want to convert another date? (yes/y or no/n): ").strip().lower()
-        if another in ("yes", "y"):
-            continue
-
-        # If the user is done converting dates, optionally show the *last date* in the extended format.
-        show_ext = input(
-            "Would you like to show this date in the extended format (Piktun, Kalabtun, K'inchiltun, Alautun)? (yes/y or no/n): "
-        ).strip().lower()
-
-        if show_ext in ("yes", "y"):
-            display_extended_from_jdn(last_jdn)
-
-            # After showing extended output, ask again if they want to convert another date.
-            again = input("Do you want to convert another date? (yes/y or no/n): ").strip().lower()
-            if again in ("yes", "y"):
-                continue
-
-        break
+    try:
+        run_interactive()
+    except (KeyboardInterrupt, EOFError):
+        clear_terminal()
+        print("Exited Maya Calendar converter.")
 
 
 if __name__ == "__main__":
     main()
-
