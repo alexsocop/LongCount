@@ -4,9 +4,9 @@
      Gran Wayeb' note:
      The standard epigraphic Haab' is a continuous 365-day cycle (18 x 20 days + 5 Wayeb' days).
      The optional community mode below follows the supplied Ajq'ij tradition: a 13-day Gran Wayeb' is
-     intercalated after each 52-Haab block. Because the supplied example only states that 2012-12-21
-     corresponded to a Gran Wayeb', this implementation uses 2012-12-21 as Gran Wayeb' day 1.
-     Change GREAT_WAYEB_ANCHOR_* or GREAT_WAYEB_ANCHOR_DAY if your Ajq'ij provides a more precise anchor.
+     used instead of the regular five-day Wayeb' at the end of each 52-Haab block. The Ajq'ij's supplied
+     count anchors 2013-01-02 as 0 Gran Wayeb'; the sequence runs through 12 Gran Wayeb' and is followed
+     by 0 Pop on 2013-01-15. The rule is extended backward and forward with floor-modulo arithmetic.
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -263,7 +263,7 @@
         <option value="standard" id="standardModeOption">Standard continuous 365-day Haabʼ</option>
       </select>
       <p class="hint" id="settingsHint">
-        Gran Wayebʼ mode uses 2012-12-21 as day 1 of a 13-day intercalary Gran Wayebʼ and repeats the adjustment after each 52-Haab block. The standard option preserves the classical 365-day Haabʼ cycle.
+        Gran Wayebʼ mode replaces the regular five-day Wayebʼ at the end of each 52-Haab block with a 13-day Gran Wayebʼ numbered 0–12. The supplied count anchors 2013-01-02 as 0 Gran Wayebʼ. The standard option preserves the classical 365-day Haabʼ cycle.
       </p>
     </div>
   </details>
@@ -278,33 +278,37 @@
     // Haab' day base: 0 => 0..19 (Wayeb' 0..4), matching the original file.
     const HAAB_DAY_BASE = 0;
 
-    // Community Gran Wayeb' configuration.
-    // Necessary assumption from the supplied oral/community example:
-    // 2012-12-21 is treated as Gran Wayeb' day 1.
-    const GREAT_WAYEB_ANCHOR_YEAR = 2012;
-    const GREAT_WAYEB_ANCHOR_MONTH = 12;
-    const GREAT_WAYEB_ANCHOR_DAY_OF_MONTH = 21;
-    const GREAT_WAYEB_ANCHOR_DAY = 1; // Change this if a more precise day number is provided.
+    // Community Gran Wayeb' configuration, anchored to the Ajq'ij's supplied count.
+    // 2013-01-02 = 0 Gran Wayeb'; 2013-01-14 = 12 Gran Wayeb'; 2013-01-15 = 0 Pop.
+    const GREAT_WAYEB_ANCHOR_YEAR = 2013;
+    const GREAT_WAYEB_ANCHOR_MONTH = 1;
+    const GREAT_WAYEB_ANCHOR_DAY_OF_MONTH = 2;
     const GREAT_WAYEB_DAYS = 13;
     const HAAB_YEARS_PER_GREAT_CYCLE = 52;
     const REGULAR_HAAB_DAYS = 365;
-    const GREAT_WAYEB_CYCLE_DAYS = HAAB_YEARS_PER_GREAT_CYCLE * REGULAR_HAAB_DAYS + GREAT_WAYEB_DAYS;
+    const REGULAR_WAYEB_DAYS = 5;
+    // The special 13-day period replaces (rather than follows) the final regular 5-day Wayeb'.
+    const ORDINARY_DAYS_PER_GREAT_CYCLE =
+      HAAB_YEARS_PER_GREAT_CYCLE * REGULAR_HAAB_DAYS - REGULAR_WAYEB_DAYS;
+    const GREAT_WAYEB_CYCLE_DAYS = ORDINARY_DAYS_PER_GREAT_CYCLE + GREAT_WAYEB_DAYS;
 
     const HAAB_MONTHS = [
       "Pop","Wo","Sip","Sotzʼ","Sek","Xul","Yaxkʼin","Mol","Chʼen","Yax",
       "Sak","Keh","Mak","Kʼankʼin","Muwan","Pax","Kʼayab","Kumkʼu","Wayebʼ"
     ];
 
-    const TZOLKIN_NAMES = [
-      "Imox","Iqʼ","Aqʼabʼal","Kʼat","Kan","Kame","Kej","Qʼanil","Toj","Tzʼiʼ",
+    const CHOLQIJ_NAMES = [
+      "Imox","Iqʼ","Aqʼabʼal","Kʼat","Kan","Keme","Kej","Qʼanil","Toj","Tzʼiʼ",
       "Bʼatzʼ","E","Aj","Iʼx","Tzʼikin","Ajmaq","Noʼj","Tijax","Kawoq","Ajpuʼ"
     ];
 
     // Classical epoch alignments for Long Count / Cholq'ij / standard Haab' / Lords of the Night.
     const TZ_START_NUMBER = 4;
-    let TZ_START_NAME_INDEX = TZOLKIN_NAMES.indexOf("Ajpuʼ");
+    let TZ_START_NAME_INDEX = CHOLQIJ_NAMES.indexOf("Ajpuʼ");
     if (TZ_START_NAME_INDEX < 0) TZ_START_NAME_INDEX = 19;
-    const HAAB_START_ABS_INDEX = 17 * 20 + 8; // 8 Kumkʼu, 0-based
+    // This is the Haab' position at the Long Count epoch 0.0.0.0.0, not at 13.0.0.0.0.
+    // Advancing it by 13 B'ak'tuns makes 13.0.0.0.0 equal 3 K'ank'in in standard mode.
+    const HAAB_START_ABS_INDEX = 17 * 20 + 8; // 8 Kumkʼu at 0.0.0.0.0, 0-based
     const LORD_START_NUMBER = 9;
 
     // ======= Interface languages =======
@@ -338,11 +342,11 @@
         haabMode: "Haabʼ mode:",
         greatMode: "Community Gran Wayebʼ adjustment",
         standardMode: "Standard continuous 365-day Haabʼ",
-        settingsHint: "Gran Wayebʼ mode uses 2012-12-21 as day 1 of a 13-day intercalary Gran Wayebʼ and repeats the adjustment after each 52-Haab block. The standard option preserves the classical 365-day Haabʼ cycle.",
+        settingsHint: "Gran Wayebʼ mode replaces the regular five-day Wayebʼ at the end of each 52-Haab block with a 13-day Gran Wayebʼ numbered 0–12. The supplied count anchors 2013-01-02 as 0 Gran Wayebʼ. The standard option preserves the classical 365-day Haabʼ cycle.",
         gregorianHint: "Accepted: 2026-09-01, 2026.09.01, or 2026/09/01. Negative years may be used for BCE dates.",
         longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — for example 13.0.13.16.2.",
         noteStandard: "Uses GMT correlation JDN 584283; standard continuous 365-day Haabʼ; Haabʼ day base 0 (0–19; Wayebʼ 0–4).",
-        noteGreat: "Uses GMT correlation JDN 584283; community Gran Wayebʼ adjustment anchored to 2012-12-21; Haabʼ day base 0 for ordinary winals.",
+        noteGreat: "Uses GMT correlation JDN 584283; community Gran Wayebʼ replacement anchored to 2013-01-02 = 0 Gran Wayebʼ; Haabʼ day base 0 for ordinary winals.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "Enter a Gregorian date as YYYY-MM-DD, YYYY.MM.DD, or YYYY/MM/DD.",
         errorYear: "The Gregorian year must be a whole number other than 0. Use a negative year for BCE dates (for example, -3114).",
@@ -382,11 +386,11 @@
         haabMode: "Modo del Haabʼ:",
         greatMode: "Ajuste comunitario del Gran Wayebʼ",
         standardMode: "Haabʼ estándar continuo de 365 días",
-        settingsHint: "El modo Gran Wayebʼ toma el 2012-12-21 como día 1 de un Gran Wayebʼ intercalar de 13 días y repite el ajuste después de cada bloque de 52 Haabʼ. La opción estándar conserva el ciclo clásico continuo del Haabʼ de 365 días.",
+        settingsHint: "El modo Gran Wayebʼ reemplaza el Wayebʼ regular de cinco días al final de cada bloque de 52 Haabʼ por un Gran Wayebʼ de 13 días numerado 0–12. El conteo proporcionado fija el 2013-01-02 como 0 Gran Wayebʼ. La opción estándar conserva el ciclo clásico continuo del Haabʼ de 365 días.",
         gregorianHint: "Se acepta: 2026-09-01, 2026.09.01 o 2026/09/01. Para fechas a. C. se pueden usar años negativos.",
         longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por ejemplo 13.0.13.16.2.",
         noteStandard: "Usa la correlación GMT JDN 584283; Haabʼ estándar continuo de 365 días; base del día Haabʼ 0 (0–19; Wayebʼ 0–4).",
-        noteGreat: "Usa la correlación GMT JDN 584283; ajuste comunitario del Gran Wayebʼ anclado al 2012-12-21; base del día Haabʼ 0 para los winales ordinarios.",
+        noteGreat: "Usa la correlación GMT JDN 584283; reemplazo comunitario del Gran Wayebʼ anclado a 2013-01-02 = 0 Gran Wayebʼ; base del día Haabʼ 0 para los winales ordinarios.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "Ingrese una fecha gregoriana como AAAA-MM-DD, AAAA.MM.DD o AAAA/MM/DD.",
         errorYear: "El año gregoriano debe ser un número entero distinto de 0. Use un año negativo para fechas a. C. (por ejemplo, -3114).",
@@ -405,7 +409,7 @@
         pageTitle: "Mayabʼ Cholbʼal Qʼij – Kamik",
         language: "Chʼabʼal:",
         diaryFormat: "Rubʼeyal tzʼibʼanik:",
-        todayLongcount: "Long Count rech kamik:",
+        todayLongcount: "Cuenta Larga rech kamik:",
         todayCholqij: "Cholqʼij rech kamik (Kʼicheʼ bʼiʼaj):",
         todayHaab: "Haabʼ rech kamik (Yucatec bʼiʼaj):",
         todayLord: "Rajaw Aqʼabʼ rech kamik:",
@@ -413,35 +417,35 @@
         closeConverter: "Tzʼapij ri jalabʼal",
         converterTitle: "Jalabʼal Qʼijul",
         conversionQuestion: "Jas qʼijul kawaj katzʼibʼaj?",
-        gregorianDate: "Gregorian qʼijul",
-        longcountDate: "Long Count qʼijul",
+        gregorianDate: "Gregoriano qʼijul",
+        longcountDate: "Cuenta Larga qʼijul",
         convert: "Jalaʼ",
         convertedDate: "Jalom Qʼijul",
         longcountLabel: "Long Count:",
         cholqijLabel: "Cholqʼij (Kʼicheʼ bʼiʼaj):",
         haabLabel: "Haabʼ (Yucatec bʼiʼaj):",
         lordLabel: "Rajaw Aqʼabʼ:",
-        gregorianLabel: "Gregorian qʼijul:",
+        gregorianLabel: "Gregoriano qʼijul:",
         settingsSummary: "Uchaʼik rajilaxik ri Haabʼ",
         haabMode: "Rubʼeyal Haabʼ:",
         greatMode: "Ujalik Gran Wayebʼ rech ri komon",
         standardMode: "Haabʼ 365 qʼij, man ktan taj",
-        settingsHint: "Ri Gran Wayebʼ mode kkoj 2012-12-21 achiʼel nabʼe qʼij rech 13 qʼij Gran Wayebʼ, xuqujeʼ kkamulux chi rij 52 Haabʼ. Ri standard mode kutaqej ri Haabʼ rech 365 qʼij.",
+        settingsHint: "Ri Gran Wayebʼ modo kukʼex ri 5 qʼij Wayebʼ pa ukʼisik ronojel 52 Haabʼ rukʼ jun Gran Wayebʼ rech 13 qʼij, ajilam 0–12. Ri etabʼal ri xyaʼ kutaq 2013-01-02 achiʼel 0 Gran Wayebʼ. Ri modo estándar kutaqej ri Haabʼ rech 365 qʼij.",
         gregorianHint: "Kakwin katzʼibʼaj: 2026-09-01, 2026.09.01 o 2026/09/01. Keʼokisax negative taq junabʼ che BCE qʼijul.",
         longcountHint: "Rubʼeyal: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — kʼambʼal naʼoj 13.0.13.16.2.",
-        noteStandard: "Kkoj GMT correlation JDN 584283; Haabʼ 365 qʼij man ktan taj; Haabʼ qʼij base 0 (0–19; Wayebʼ 0–4).",
-        noteGreat: "Kkoj GMT correlation JDN 584283; ujalik Gran Wayebʼ rech ri komon, ruxeʼ 2012-12-21; Haabʼ qʼij base 0 pa ri winalabʼ.",
+        noteStandard: "Kkoj correlación GMT JDN 584283; Haabʼ 365 qʼij man ktan taj; Haabʼ qʼij base 0 (0–19; Wayebʼ 0–4).",
+        noteGreat: "Kkoj correlación GMT JDN 584283; Gran Wayebʼ rech ri komon, ruxeʼ 2013-01-02 = 0 Gran Wayebʼ; Haabʼ qʼij base 0 pa ri winalabʼ.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "Chatzʼibʼaj jun Gregorian qʼijul achiʼel YYYY-MM-DD, YYYY.MM.DD o YYYY/MM/DD.",
-        errorYear: "Ri Gregorian junabʼ rajawaxik jun tzʼaqat ajilabʼal, man 0 taj. Chakojoʼ jun negative junabʼ che BCE qʼijul (kʼambʼal naʼoj, -3114).",
-        errorMonth: "Ri Gregorian ikʼ rajawaxik kʼo pa 1 chi 12.",
-        errorMonthDays: "We ikʼ riʼ kʼo {days} qʼij pa ri proleptic Gregorian cholbʼal qʼij.",
-        errorLongcountFormat: "Chatzʼibʼaj ri Long Count achiʼel Bʼakʼtun.Kʼatun.Tun.Winal.Kin, kʼambʼal naʼoj 13.0.13.16.2.",
+        errorYear: "Ri Gregoriano junabʼ rajawaxik jun tzʼaqat ajilabʼal, man 0 taj. Chakojoʼ jun negativo junabʼ che BCE qʼijul (kʼambʼal naʼoj, -3114).",
+        errorMonth: "Ri Gregoriano ikʼ rajawaxik kʼo pa 1 chi 12.",
+        errorMonthDays: "We ikʼ riʼ kʼo {days} qʼij pa ri Gregoriano proleptico cholbʼal qʼij.",
+        errorLongcountFormat: "Chatzʼibʼaj ri Cuenta Larga achiʼel Bʼakʼtun.Kʼatun.Tun.Winal.Kin, kʼambʼal naʼoj 13.0.13.16.2.",
         errorLongcountLarge: "Kʼo jun sibʼalaj nimalaj ajilabʼal pa ri Long Count.",
-        errorLongcountRange: "Chakojoʼ ri canonical coefficients: Kʼatun 0–19, Tun 0–19, Winal 0–17, xuqujeʼ Kin 0–19.",
+        errorLongcountRange: "Chakojoʼ ri coeficientes canónicos: Kʼatun 0–19, Tun 0–19, Winal 0–17, xuqujeʼ Kin 0–19.",
         footerPrefix: "Chawilaʼ ri ",
-        footerLink: "desktop version",
-        footerSuffix: " rech Long Count."
+        footerLink: "versión de escritorio",
+        footerSuffix: " rech Cuenta Larga."
       },
 
       ja: {
@@ -470,11 +474,11 @@
         haabMode: "Haabʼ モード：",
         greatMode: "コミュニティ版 Gran Wayebʼ 補正",
         standardMode: "標準の連続365日 Haabʼ",
-        settingsHint: "Gran Wayebʼ モードでは、2012-12-21 を13日間の挿入期間 Gran Wayebʼ の1日目とし、52 Haabʼ ごとにこの補正を繰り返します。標準モードでは、古典的な連続365日の Haabʼ 周期を維持します。",
+        settingsHint: "Gran Wayebʼ モードでは、52 Haabʼ の各ブロックの末尾にある通常の5日間の Wayebʼ を、0～12と数える13日間の Gran Wayebʼ に置き換えます。提供された日付対応では、2013-01-02 が 0 Gran Wayebʼ です。標準モードでは、古典的な連続365日の Haabʼ 周期を維持します。",
         gregorianHint: "入力例：2026-09-01、2026.09.01、2026/09/01。紀元前の日付には負の年を使用できます。",
         longcountHint: "形式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin — 例：13.0.13.16.2。",
         noteStandard: "GMT相関 JDN 584283 を使用。標準の連続365日 Haabʼ。Haabʼ の日数は0始まり（0–19、Wayebʼ は0–4）。",
-        noteGreat: "GMT相関 JDN 584283 を使用。2012-12-21 を基準とするコミュニティ版 Gran Wayebʼ 補正。通常の winal の Haabʼ 日数は0始まり。",
+        noteGreat: "GMT相関 JDN 584283 を使用。2013-01-02 = 0 Gran Wayebʼ を基準とするコミュニティ版 Gran Wayebʼ 置換。通常の winal の Haabʼ 日数は0始まり。",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "グレゴリオ暦の日付を YYYY-MM-DD、YYYY.MM.DD、または YYYY/MM/DD の形式で入力してください。",
         errorYear: "グレゴリオ暦の年は0以外の整数で入力してください。紀元前の日付には負の年を使用してください（例：-3114）。",
@@ -514,11 +518,11 @@
         haabMode: "نمط Haabʼ:",
         greatMode: "تصحيح Gran Wayebʼ وفق التقليد المجتمعي",
         standardMode: "Haabʼ القياسي المتواصل من 365 يومًا",
-        settingsHint: "يعتبر نمط Gran Wayebʼ تاريخ 2012-12-21 اليوم الأول من Gran Wayebʼ إضافي مدته 13 يومًا، ويكرر التصحيح بعد كل دورة من 52 Haabʼ. أما الخيار القياسي فيحافظ على دورة Haabʼ الكلاسيكية المتواصلة من 365 يومًا.",
+        settingsHint: "يستبدل نمط Gran Wayebʼ فترة Wayebʼ العادية ذات الأيام الخمسة في نهاية كل كتلة من 52 Haabʼ بفترة Gran Wayebʼ مدتها 13 يومًا وتُرقّم من 0 إلى 12. يثبت العد المقدم تاريخ 2013-01-02 بوصفه 0 Gran Wayebʼ. أما الخيار القياسي فيحافظ على دورة Haabʼ الكلاسيكية المتواصلة من 365 يومًا.",
         gregorianHint: "مقبول: 2026-09-01 أو 2026.09.01 أو 2026/09/01. يمكن استخدام سنة سالبة للتواريخ قبل الميلاد.",
         longcountHint: "الصيغة: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — مثال: 13.0.13.16.2.",
         noteStandard: "يستخدم ارتباط GMT بقيمة JDN 584283؛ Haabʼ قياسي متواصل من 365 يومًا؛ يبدأ ترقيم يوم Haabʼ من 0 (0–19؛ وWayebʼ من 0–4).",
-        noteGreat: "يستخدم ارتباط GMT بقيمة JDN 584283؛ تصحيح Gran Wayebʼ وفق التقليد المجتمعي والمرتبط بتاريخ 2012-12-21؛ يبدأ ترقيم يوم Haabʼ من 0 في الـ winal العادية.",
+        noteGreat: "يستخدم ارتباط GMT بقيمة JDN 584283؛ استبدال Gran Wayebʼ وفق التقليد المجتمعي والمرتبط بـ 2013-01-02 = 0 Gran Wayebʼ؛ يبدأ ترقيم يوم Haabʼ من 0 في الـ winal العادية.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "أدخل تاريخًا غريغوريًا بصيغة YYYY-MM-DD أو YYYY.MM.DD أو YYYY/MM/DD.",
         errorYear: "يجب أن تكون السنة الغريغورية عددًا صحيحًا غير 0. استخدم سنة سالبة للتواريخ قبل الميلاد (مثل -3114).",
@@ -558,11 +562,11 @@
         haabMode: "Haabʼ मोड:",
         greatMode: "समुदाय-आधारित Gran Wayebʼ समायोजन",
         standardMode: "मानक निरंतर 365-दिवसीय Haabʼ",
-        settingsHint: "Gran Wayebʼ मोड 2012-12-21 को 13-दिवसीय अंतरवर्ती Gran Wayebʼ का पहला दिन मानता है और प्रत्येक 52-Haabʼ चक्र के बाद इस समायोजन को दोहराता है। मानक विकल्प पारंपरिक निरंतर 365-दिवसीय Haabʼ चक्र को बनाए रखता है।",
+        settingsHint: "Gran Wayebʼ मोड प्रत्येक 52-Haabʼ खंड के अंत में सामान्य पाँच-दिवसीय Wayebʼ को 0–12 क्रमांक वाले 13-दिवसीय Gran Wayebʼ से बदलता है। दिए गए गणना क्रम में 2013-01-02 को 0 Gran Wayebʼ माना गया है। मानक विकल्प पारंपरिक निरंतर 365-दिवसीय Haabʼ चक्र को बनाए रखता है।",
         gregorianHint: "स्वीकृत प्रारूप: 2026-09-01, 2026.09.01 या 2026/09/01। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष का उपयोग किया जा सकता है।",
         longcountHint: "प्रारूप: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — उदाहरण: 13.0.13.16.2।",
         noteStandard: "GMT सहसंबंध JDN 584283 का उपयोग करता है; मानक निरंतर 365-दिवसीय Haabʼ; Haabʼ दिन आधार 0 (0–19; Wayebʼ 0–4)।",
-        noteGreat: "GMT सहसंबंध JDN 584283 का उपयोग करता है; 2012-12-21 पर आधारित समुदाय-आधारित Gran Wayebʼ समायोजन; सामान्य winal में Haabʼ दिन आधार 0।",
+        noteGreat: "GMT सहसंबंध JDN 584283 का उपयोग करता है; 2013-01-02 = 0 Gran Wayebʼ पर आधारित समुदाय-आधारित Gran Wayebʼ प्रतिस्थापन; सामान्य winal में Haabʼ दिन आधार 0।",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "ग्रेगोरियन तिथि YYYY-MM-DD, YYYY.MM.DD या YYYY/MM/DD प्रारूप में दर्ज करें।",
         errorYear: "ग्रेगोरियन वर्ष 0 के अलावा कोई पूर्णांक होना चाहिए। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष उपयोग करें (उदाहरण: -3114)।",
@@ -602,11 +606,11 @@
         haabMode: "Mode Haabʼ:",
         greatMode: "Penyesuaian Gran Wayebʼ komunitas",
         standardMode: "Haabʼ standar 365 hari berkesinambungan",
-        settingsHint: "Mode Gran Wayebʼ menggunakan 2012-12-21 sebagai hari pertama Gran Wayebʼ interkalar selama 13 hari dan mengulangi penyesuaian setelah setiap blok 52 Haabʼ. Opsi standar mempertahankan siklus Haabʼ klasik 365 hari yang berkesinambungan.",
+        settingsHint: "Mode Gran Wayebʼ mengganti Wayebʼ lima hari biasa pada akhir setiap blok 52 Haabʼ dengan Gran Wayebʼ 13 hari yang diberi nomor 0–12. Hitungan yang diberikan menetapkan 2013-01-02 sebagai 0 Gran Wayebʼ. Opsi standar mempertahankan siklus Haabʼ klasik 365 hari yang berkesinambungan.",
         gregorianHint: "Diterima: 2026-09-01, 2026.09.01, atau 2026/09/01. Tahun negatif dapat digunakan untuk tanggal SM.",
         longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — contoh 13.0.13.16.2.",
         noteStandard: "Menggunakan korelasi GMT JDN 584283; Haabʼ standar 365 hari berkesinambungan; dasar hari Haabʼ 0 (0–19; Wayebʼ 0–4).",
-        noteGreat: "Menggunakan korelasi GMT JDN 584283; penyesuaian Gran Wayebʼ komunitas dengan acuan 2012-12-21; dasar hari Haabʼ 0 untuk winal biasa.",
+        noteGreat: "Menggunakan korelasi GMT JDN 584283; penggantian Gran Wayebʼ komunitas dengan acuan 2013-01-02 = 0 Gran Wayebʼ; dasar hari Haabʼ 0 untuk winal biasa.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "Masukkan tanggal Gregorian sebagai YYYY-MM-DD, YYYY.MM.DD, atau YYYY/MM/DD.",
         errorYear: "Tahun Gregorian harus berupa bilangan bulat selain 0. Gunakan tahun negatif untuk tanggal SM (misalnya -3114).",
@@ -646,11 +650,11 @@
         haabMode: "Modo do Haabʼ:",
         greatMode: "Ajuste comunitário do Gran Wayebʼ",
         standardMode: "Haabʼ padrão contínuo de 365 dias",
-        settingsHint: "O modo Gran Wayebʼ considera 2012-12-21 como o primeiro dia de um Gran Wayebʼ intercalar de 13 dias e repete o ajuste após cada bloco de 52 Haabʼ. A opção padrão preserva o ciclo clássico contínuo do Haabʼ de 365 dias.",
+        settingsHint: "O modo Gran Wayebʼ substitui o Wayebʼ regular de cinco dias no fim de cada bloco de 52 Haabʼ por um Gran Wayebʼ de 13 dias numerado de 0 a 12. A contagem fornecida fixa 2013-01-02 como 0 Gran Wayebʼ. A opção padrão preserva o ciclo clássico contínuo do Haabʼ de 365 dias.",
         gregorianHint: "Aceita: 2026-09-01, 2026.09.01 ou 2026/09/01. Anos negativos podem ser usados para datas a.C.",
         longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por exemplo, 13.0.13.16.2.",
         noteStandard: "Usa a correlação GMT JDN 584283; Haabʼ padrão contínuo de 365 dias; base do dia Haabʼ 0 (0–19; Wayebʼ 0–4).",
-        noteGreat: "Usa a correlação GMT JDN 584283; ajuste comunitário do Gran Wayebʼ ancorado em 2012-12-21; base do dia Haabʼ 0 para os winal comuns.",
+        noteGreat: "Usa a correlação GMT JDN 584283; substituição comunitária do Gran Wayebʼ ancorada em 2013-01-02 = 0 Gran Wayebʼ; base do dia Haabʼ 0 para os winal comuns.",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "Insira uma data gregoriana como YYYY-MM-DD, YYYY.MM.DD ou YYYY/MM/DD.",
         errorYear: "O ano gregoriano deve ser um número inteiro diferente de 0. Use um ano negativo para datas a.C. (por exemplo, -3114).",
@@ -690,11 +694,11 @@
         haabMode: "Haabʼ মোড:",
         greatMode: "কমিউনিটি Gran Wayebʼ সমন্বয়",
         standardMode: "মানক ধারাবাহিক 365 দিনের Haabʼ",
-        settingsHint: "Gran Wayebʼ মোডে 2012-12-21-কে 13 দিনের অন্তর্বর্তী Gran Wayebʼ-এর প্রথম দিন ধরা হয় এবং প্রতি 52-Haabʼ চক্রের পরে এই সমন্বয় পুনরাবৃত্তি করা হয়। মানক বিকল্পটি Haabʼ-এর ধ্রুপদি ধারাবাহিক 365 দিনের চক্র বজায় রাখে।",
+        settingsHint: "Gran Wayebʼ মোডে প্রতি 52-Haabʼ পর্বের শেষে সাধারণ পাঁচ দিনের Wayebʼ-এর বদলে 0–12 নম্বরের 13 দিনের Gran Wayebʼ ব্যবহৃত হয়। প্রদত্ত গণনায় 2013-01-02 হলো 0 Gran Wayebʼ। মানক বিকল্পটি Haabʼ-এর ধ্রুপদি ধারাবাহিক 365 দিনের চক্র বজায় রাখে।",
         gregorianHint: "গ্রহণযোগ্য: 2026-09-01, 2026.09.01 অথবা 2026/09/01। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করা যায়।",
         longcountHint: "বিন্যাস: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — উদাহরণ 13.0.13.16.2।",
         noteStandard: "GMT correlation JDN 584283 ব্যবহার করে; মানক ধারাবাহিক 365 দিনের Haabʼ; Haabʼ দিনের ভিত্তি 0 (0–19; Wayebʼ 0–4)।",
-        noteGreat: "GMT correlation JDN 584283 ব্যবহার করে; 2012-12-21-কে ভিত্তি করে কমিউনিটি Gran Wayebʼ সমন্বয়; সাধারণ winal-এর Haabʼ দিনের ভিত্তি 0।",
+        noteGreat: "GMT correlation JDN 584283 ব্যবহার করে; 2013-01-02 = 0 Gran Wayebʼ-কে ভিত্তি করে কমিউনিটি Gran Wayebʼ প্রতিস্থাপন; সাধারণ winal-এর Haabʼ দিনের ভিত্তি 0।",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "গ্রেগরিয়ান তারিখ YYYY-MM-DD, YYYY.MM.DD অথবা YYYY/MM/DD বিন্যাসে লিখুন।",
         errorYear: "গ্রেগরিয়ান বছর 0 ছাড়া একটি পূর্ণসংখ্যা হতে হবে। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করুন (যেমন -3114)।",
@@ -734,11 +738,11 @@
         haabMode: "Haabʼ 模式：",
         greatMode: "社群 Gran Wayebʼ 校正",
         standardMode: "標準連續 365 日 Haabʼ",
-        settingsHint: "Gran Wayebʼ 模式以 2012-12-21 作為 13 日 Gran Wayebʼ 閏期的第 1 日，並在每個 52 Haabʼ 週期後重複校正。標準模式則保留傳統連續 365 日的 Haabʼ 週期。",
+        settingsHint: "Gran Wayebʼ 模式會在每個 52 Haabʼ 區段末尾，以編號 0–12 的 13 日 Gran Wayebʼ 取代一般的 5 日 Wayebʼ。所提供的計數以 2013-01-02 為 0 Gran Wayebʼ。標準模式則保留傳統連續 365 日的 Haabʼ 週期。",
         gregorianHint: "可輸入：2026-09-01、2026.09.01 或 2026/09/01。西元前日期可使用負數年份。",
         longcountHint: "格式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin，例如 13.0.13.16.2。",
         noteStandard: "採用 GMT 對應常數 JDN 584283；標準連續 365 日 Haabʼ；Haabʼ 日期以 0 起算（0–19；Wayebʼ 0–4）。",
-        noteGreat: "採用 GMT 對應常數 JDN 584283；社群 Gran Wayebʼ 校正以 2012-12-21 為錨點；一般 winal 的 Haabʼ 日期以 0 起算。",
+        noteGreat: "採用 GMT 對應常數 JDN 584283；社群 Gran Wayebʼ 取代規則以 2013-01-02 = 0 Gran Wayebʼ 為錨點；一般 winal 的 Haabʼ 日期以 0 起算。",
         granWayeb: "Gran Wayebʼ",
         errorGregorianFormat: "請以 YYYY-MM-DD、YYYY.MM.DD 或 YYYY/MM/DD 格式輸入格里曆日期。",
         errorYear: "格里曆年份必須是非 0 的整數。西元前日期請使用負數年份（例如 -3114）。",
@@ -958,10 +962,10 @@
       return CORR_JDN + days;
     }
 
-    function tzolkinFromDays(days) {
+    function cholqijFromDays(days) {
       const nameIdx = mod(TZ_START_NAME_INDEX + days, 20);
       const number = mod((TZ_START_NUMBER - 1) + days, 13) + 1;
-      return { name: TZOLKIN_NAMES[nameIdx], number };
+      return { name: CHOLQIJ_NAMES[nameIdx], number };
     }
 
     function standardHaabFromDays(days) {
@@ -979,20 +983,20 @@
         GREAT_WAYEB_ANCHOR_DAY_OF_MONTH
       );
 
-      // Shift the mathematical cycle so the configured anchor can be any Gran Wayeb' day 1..13.
-      const effectiveStartJDN = anchorJDN - (GREAT_WAYEB_ANCHOR_DAY - 1);
-      const position = mod(jdn - effectiveStartJDN, GREAT_WAYEB_CYCLE_DAYS);
+      // Floor-modulo makes the same 52-Haab rule work backward as well as forward.
+      const position = mod(jdn - anchorJDN, GREAT_WAYEB_CYCLE_DAYS);
 
       if (position < GREAT_WAYEB_DAYS) {
         return {
           month: t("granWayeb"),
-          day: position + 1,
+          day: position,
           greatWayeb: true
         };
       }
 
-      // After the 13 intercalary days, the ordinary 365-day Haab' resumes at 0 Pop.
-      // A 52-year block contains exactly 52 * 365 ordinary Haab' days.
+      // After 12 Gran Wayeb', the ordinary Haab' resumes at 0 Pop. Between special
+      // periods are 51 complete 365-day Haab' years plus 360 days of the 52nd year;
+      // its regular 0-4 Wayeb' is replaced by the 13-day Gran Wayeb'.
       const regularPosition = mod(position - GREAT_WAYEB_DAYS, REGULAR_HAAB_DAYS);
       const month = Math.floor(regularPosition / 20);
       const dayZero = regularPosition % 20;
@@ -1014,7 +1018,7 @@
     function calendarDataFromJDN(jdn) {
       const greg = jdnToGregorian(jdn);
       const { b, k, t, u, kin, days } = jdnToLongCount(jdn);
-      const tz = tzolkinFromDays(days);
+      const tz = cholqijFromDays(days);
       const ha = haabForJDN(jdn, days);
       const lord = lordFromDays(days);
 
