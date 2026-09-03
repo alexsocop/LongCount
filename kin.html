@@ -219,6 +219,25 @@
       border-radius: 7px;
     }
 
+    .setting-option {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .setting-option input {
+      width: auto;
+    }
+
+    .extended-note {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin: 6px auto 0;
+    }
+
     @media (prefers-color-scheme: dark) {
       .small { color: #bbb; }
     }
@@ -253,6 +272,7 @@
 
   <p class="label" id="todayLongcountLabel">Todayʼs Long Count:</p>
   <p class="value" id="longcount"></p>
+  <p class="extended-note" id="todayExtendedNote" hidden></p>
 
   <p class="label" id="todayCholqijLabel">Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</p>
   <p class="value" id="cholqij"></p>
@@ -280,8 +300,8 @@
 
     <div class="field">
       <label for="dateInput" id="dateInputLabel">Gregorian date</label>
-      <input id="dateInput" type="text" inputmode="text" autocomplete="off" placeholder="2026-09-01" />
-      <div class="hint" id="dateHint">Accepted: 2026-09-01, 2026.09.01, or 2026/09/01.</div>
+      <input id="dateInput" type="text" inputmode="text" autocomplete="off" placeholder="2026-12-31" />
+      <div class="hint" id="dateHint">Order: Year, Month, Day. Accepted: 2026-12-31, 2026.12.31, or 2026/12/31.</div>
     </div>
 
     <div class="actions">
@@ -303,6 +323,7 @@
 
       <p class="label" id="resultLongcountLabel">Long Count:</p>
       <p class="value" id="resultLongcount"></p>
+      <p class="extended-note" id="resultExtendedNote" hidden></p>
 
       <p class="label" id="resultCholqijLabel">Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):</p>
       <p class="value" id="resultCholqij"></p>
@@ -328,6 +349,11 @@
         <option value="great" selected id="greatModeOption">Community Gran Wayebʼ adjustment</option>
         <option value="standard" id="standardModeOption">Standard continuous 365-day Haabʼ</option>
       </select>
+      <label class="setting-option" for="showExtendedCount">
+        <input id="showExtendedCount" type="checkbox" />
+        <strong id="showExtendedCountLabel">Show the Extended Long Count</strong>
+      </label>
+      <p class="hint" id="extendedCountHint">Adds Piktun, Kalabtun, Kʼinchiltun, and Alautun. It is shown automatically for dates beyond the usual five-part range.</p>
       <p class="hint" id="settingsHint">
         Gran Wayebʼ mode replaces the regular five-day Wayebʼ at the end of each 52-Haab block with a 13-day Gran Wayebʼ numbered 0–12. The supplied count anchors 2013-01-02 as 0 Gran Wayebʼ. The standard option preserves the classical 365-day Haabʼ cycle.
       </p>
@@ -357,6 +383,13 @@
     const ORDINARY_DAYS_PER_GREAT_CYCLE =
       HAAB_YEARS_PER_GREAT_CYCLE * REGULAR_HAAB_DAYS - REGULAR_WAYEB_DAYS;
     const GREAT_WAYEB_CYCLE_DAYS = ORDINARY_DAYS_PER_GREAT_CYCLE + GREAT_WAYEB_DAYS;
+
+    // Extended Long Count units, following the same practical model as long_count.py.
+    const BAKTUN_DAYS = 144000;
+    const PIKTUN_DAYS = 20 * BAKTUN_DAYS;
+    const KALABTUN_DAYS = 20 * PIKTUN_DAYS;
+    const KINCHILTUN_DAYS = 20 * KALABTUN_DAYS;
+    const ALAUTUN_DAYS = 20 * KINCHILTUN_DAYS;
 
     const HAAB_MONTHS = [
       "Pop","Wo","Sip","Sotzʼ","Sek","Xul","Yaxkʼin","Mol","Chʼen","Yax",
@@ -408,19 +441,22 @@
         gregorianLabel: "Gregorian Date:",
         settingsSummary: "Haabʼ calculation settings",
         haabMode: "Haabʼ mode:",
+        showExtendedCount: "Show the Extended Long Count",
+        extendedCountHint: "Adds Piktun, Kalabtun, Kʼinchiltun, and Alautun. It is shown automatically for dates beyond the usual five-part range.",
+        extendedAutomatic: "Extended Long Count shown automatically because this date is outside the usual five-part range.",
         greatMode: "Community Gran Wayebʼ adjustment",
         standardMode: "Standard continuous 365-day Haabʼ",
         settingsHint: "Gran Wayebʼ mode replaces the regular five-day Wayebʼ at the end of each 52-Haab block with a 13-day Gran Wayebʼ numbered 0–12. The supplied count anchors 2013-01-02 as 0 Gran Wayebʼ. The standard option preserves the classical 365-day Haabʼ cycle.",
-        gregorianHint: "Accepted: 2026-09-01, 2026.09.01, or 2026/09/01. Negative years may be used for BCE dates.",
-        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — for example 13.0.13.16.2.",
+        gregorianHint: "Order: Year, Month, Day. Accepted: 2026-12-31, 2026.12.31, or 2026/12/31. Negative years may be used for BCE dates.",
+        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — for example 13.0.13.16.2. Signed and out-of-range coefficients are normalized.",
         noteStandard: "Uses GMT correlation JDN 584283; standard continuous 365-day Haabʼ; Haabʼ day base 0 (0–19; Wayebʼ 0–4).",
         noteGreat: "Uses GMT correlation JDN 584283; community Gran Wayebʼ replacement anchored to 2013-01-02 = 0 Gran Wayebʼ; Haabʼ day base 0 for ordinary winals.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "Enter a Gregorian date as YYYY-MM-DD, YYYY.MM.DD, or YYYY/MM/DD.",
+        errorGregorianFormat: "Enter a Gregorian date in Year, Month, Day order: YYYY-MM-DD, YYYY.MM.DD, or YYYY/MM/DD (for example, 2026-12-31).",
         errorYear: "The Gregorian year must be a whole number other than 0. Use a negative year for BCE dates (for example, -3114).",
         errorMonth: "The Gregorian month must be between 1 and 12.",
         errorMonthDays: "That month has {days} days in the proleptic Gregorian calendar.",
-        errorLongcountFormat: "Enter the Long Count as Bʼakʼtun.Kʼatun.Tun.Winal.Kin, for example 13.0.13.16.2.",
+        errorLongcountFormat: "Enter five signed whole numbers as Bʼakʼtun.Kʼatun.Tun.Winal.Kin, for example 13.0.13.16.2 or -1.19.19.17.19.",
         errorLongcountLarge: "The Long Count contains a number that is too large.",
         errorLongcountRange: "Use canonical coefficients: Kʼatun 0–19, Tun 0–19, Winal 0–17, and Kin 0–19.",
         footerPrefix: "Get the ",
@@ -454,19 +490,22 @@
         gregorianLabel: "Fecha gregoriana:",
         settingsSummary: "Configuración del cálculo del Haabʼ",
         haabMode: "Modo del Haabʼ:",
+        showExtendedCount: "Mostrar la Cuenta Larga extendida",
+        extendedCountHint: "Añade Piktun, Kalabtun, Kʼinchiltun y Alautun. Se muestra automáticamente para fechas fuera del intervalo habitual de cinco partes.",
+        extendedAutomatic: "La Cuenta Larga extendida se muestra automáticamente porque esta fecha está fuera del intervalo habitual de cinco partes.",
         greatMode: "Ajuste comunitario del Gran Wayebʼ",
         standardMode: "Haabʼ estándar continuo de 365 días",
         settingsHint: "El modo Gran Wayebʼ reemplaza el Wayebʼ regular de cinco días al final de cada bloque de 52 Haabʼ por un Gran Wayebʼ de 13 días numerado 0–12. El conteo proporcionado fija el 2013-01-02 como 0 Gran Wayebʼ. La opción estándar conserva el ciclo clásico continuo del Haabʼ de 365 días.",
-        gregorianHint: "Se acepta: 2026-09-01, 2026.09.01 o 2026/09/01. Para fechas a. C. se pueden usar años negativos.",
-        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por ejemplo 13.0.13.16.2.",
+        gregorianHint: "Orden: Año, Mes, Día. Se acepta: 2026-12-31, 2026.12.31 o 2026/12/31. Para fechas a. C. se pueden usar años negativos.",
+        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por ejemplo 13.0.13.16.2. Los coeficientes con signo o fuera de intervalo se normalizan.",
         noteStandard: "Usa la correlación GMT JDN 584283; Haabʼ estándar continuo de 365 días; base del día Haabʼ 0 (0–19; Wayebʼ 0–4).",
         noteGreat: "Usa la correlación GMT JDN 584283; reemplazo comunitario del Gran Wayebʼ anclado a 2013-01-02 = 0 Gran Wayebʼ; base del día Haabʼ 0 para los winales ordinarios.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "Ingrese una fecha gregoriana como AAAA-MM-DD, AAAA.MM.DD o AAAA/MM/DD.",
+        errorGregorianFormat: "Ingrese una fecha gregoriana en el orden Año, Mes, Día: AAAA-MM-DD, AAAA.MM.DD o AAAA/MM/DD (por ejemplo, 2026-12-31).",
         errorYear: "El año gregoriano debe ser un número entero distinto de 0. Use un año negativo para fechas a. C. (por ejemplo, -3114).",
         errorMonth: "El mes gregoriano debe estar entre 1 y 12.",
         errorMonthDays: "Ese mes tiene {days} días en el calendario gregoriano proléptico.",
-        errorLongcountFormat: "Ingrese la Cuenta Larga como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por ejemplo 13.0.13.16.2.",
+        errorLongcountFormat: "Ingrese cinco números enteros con signo como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por ejemplo 13.0.13.16.2 o -1.19.19.17.19.",
         errorLongcountLarge: "La Cuenta Larga contiene un número demasiado grande.",
         errorLongcountRange: "Use coeficientes canónicos: Kʼatun 0–19, Tun 0–19, Winal 0–17 y Kin 0–19.",
         footerPrefix: "Obtenga la ",
@@ -500,19 +539,22 @@
         gregorianLabel: "Gregoriano qʼijul:",
         settingsSummary: "Uchaʼik rajilaxik ri Haabʼ",
         haabMode: "Rubʼeyal Haabʼ:",
+        showExtendedCount: "Kʼut ri Extended Long Count",
+        extendedCountHint: "Kukʼam Piktun, Kalabtun, Kʼinchiltun xuqujeʼ Alautun. Pa nimalaj qʼijul, pa relik ri jobʼ tanaj, pa ribʼ kʼut chik.",
+        extendedAutomatic: "Ri Extended Long Count xkʼut pa ribʼ rumal cher ri qʼijul reʼ kʼo chi rij ri jobʼ tanaj.",
         greatMode: "Ujalik Gran Wayebʼ rech ri komon",
         standardMode: "Haabʼ 365 qʼij, man ktan taj",
         settingsHint: "Ri Gran Wayebʼ modo kukʼex ri 5 qʼij Wayebʼ pa ukʼisik ronojel 52 Haabʼ rukʼ jun Gran Wayebʼ rech 13 qʼij, ajilam 0–12. Ri etabʼal ri xyaʼ kutaq 2013-01-02 achiʼel 0 Gran Wayebʼ. Ri modo estándar kutaqej ri Haabʼ rech 365 qʼij.",
-        gregorianHint: "Kakwin katzʼibʼaj: 2026-09-01, 2026.09.01 o 2026/09/01. Keʼokisax negative taq junabʼ che BCE qʼijul.",
-        longcountHint: "Rubʼeyal: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — kʼambʼal naʼoj 13.0.13.16.2.",
+        gregorianHint: "Cholaj: Junabʼ, Ikʼ, Qʼij. Kakwin katzʼibʼaj: 2026-12-31, 2026.12.31 o 2026/12/31. Keʼokisax negative taq junabʼ che BCE qʼijul.",
+        longcountHint: "Rubʼeyal: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — kʼambʼal naʼoj 13.0.13.16.2. Ri ajilabʼal rukʼ retal negativo o ri man kʼo ta pa rajilabʼalal kecholajix.",
         noteStandard: "Kkoj correlación GMT JDN 584283; Haabʼ 365 qʼij man ktan taj; Haabʼ qʼij base 0 (0–19; Wayebʼ 0–4).",
         noteGreat: "Kkoj correlación GMT JDN 584283; Gran Wayebʼ rech ri komon, ruxeʼ 2013-01-02 = 0 Gran Wayebʼ; Haabʼ qʼij base 0 pa ri winalabʼ.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "Chatzʼibʼaj jun Gregorian qʼijul achiʼel YYYY-MM-DD, YYYY.MM.DD o YYYY/MM/DD.",
+        errorGregorianFormat: "Chatzʼibʼaj jun Gregorian qʼijul pa re cholaj: Junabʼ, Ikʼ, Qʼij; YYYY-MM-DD, YYYY.MM.DD o YYYY/MM/DD (kʼambʼal naʼoj 2026-12-31).",
         errorYear: "Ri Gregoriano junabʼ rajawaxik jun tzʼaqat ajilabʼal, man 0 taj. Chakojoʼ jun negativo junabʼ che BCE qʼijul (kʼambʼal naʼoj, -3114).",
         errorMonth: "Ri Gregoriano ikʼ rajawaxik kʼo pa 1 chi 12.",
         errorMonthDays: "We ikʼ riʼ kʼo {days} qʼij pa ri Gregoriano proleptico cholbʼal qʼij.",
-        errorLongcountFormat: "Chatzʼibʼaj ri Cuenta Larga achiʼel Bʼakʼtun.Kʼatun.Tun.Winal.Kin, kʼambʼal naʼoj 13.0.13.16.2.",
+        errorLongcountFormat: "Chatzʼibʼaj jobʼ tzʼaqat ajilabʼal achiʼel Bʼakʼtun.Kʼatun.Tun.Winal.Kin, kʼambʼal naʼoj 13.0.13.16.2 o -1.19.19.17.19.",
         errorLongcountLarge: "Kʼo jun sibʼalaj nimalaj ajilabʼal pa ri Long Count.",
         errorLongcountRange: "Chakojoʼ ri coeficientes canónicos: Kʼatun 0–19, Tun 0–19, Winal 0–17, xuqujeʼ Kin 0–19.",
         footerPrefix: "Chawilaʼ ri ",
@@ -546,19 +588,22 @@
         gregorianLabel: "グレゴリオ暦の日付：",
         settingsSummary: "Haabʼ の計算設定",
         haabMode: "Haabʼ モード：",
+        showExtendedCount: "拡張長期暦を表示",
+        extendedCountHint: "Piktun、Kalabtun、Kʼinchiltun、Alautun を追加します。通常の5区分の範囲を超える日付では自動的に表示されます。",
+        extendedAutomatic: "この日付は通常の5区分の範囲外であるため、拡張長期暦を自動的に表示しています。",
         greatMode: "コミュニティ版 Gran Wayebʼ 補正",
         standardMode: "標準の連続365日 Haabʼ",
         settingsHint: "Gran Wayebʼ モードでは、52 Haabʼ の各ブロックの末尾にある通常の5日間の Wayebʼ を、0～12と数える13日間の Gran Wayebʼ に置き換えます。提供された日付対応では、2013-01-02 が 0 Gran Wayebʼ です。標準モードでは、古典的な連続365日の Haabʼ 周期を維持します。",
-        gregorianHint: "入力例：2026-09-01、2026.09.01、2026/09/01。紀元前の日付には負の年を使用できます。",
-        longcountHint: "形式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin — 例：13.0.13.16.2。",
+        gregorianHint: "順序：年、月、日。入力例：2026-12-31、2026.12.31、2026/12/31。紀元前の日付には負の年を使用できます。",
+        longcountHint: "形式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin — 例：13.0.13.16.2。符号付きまたは範囲外の係数は正規化されます。",
         noteStandard: "GMT相関 JDN 584283 を使用。標準の連続365日 Haabʼ。Haabʼ の日数は0始まり（0–19、Wayebʼ は0–4）。",
         noteGreat: "GMT相関 JDN 584283 を使用。2013-01-02 = 0 Gran Wayebʼ を基準とするコミュニティ版 Gran Wayebʼ 置換。通常の winal の Haabʼ 日数は0始まり。",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "グレゴリオ暦の日付を YYYY-MM-DD、YYYY.MM.DD、または YYYY/MM/DD の形式で入力してください。",
+        errorGregorianFormat: "グレゴリオ暦の日付を年、月、日の順で入力してください：YYYY-MM-DD、YYYY.MM.DD、YYYY/MM/DD（例：2026-12-31）。",
         errorYear: "グレゴリオ暦の年は0以外の整数で入力してください。紀元前の日付には負の年を使用してください（例：-3114）。",
         errorMonth: "グレゴリオ暦の月は1から12の間で入力してください。",
         errorMonthDays: "先発グレゴリオ暦では、その月は {days} 日です。",
-        errorLongcountFormat: "長期暦を Bʼakʼtun.Kʼatun.Tun.Winal.Kin の形式で入力してください。例：13.0.13.16.2。",
+        errorLongcountFormat: "5つの符号付き整数を Bʼakʼtun.Kʼatun.Tun.Winal.Kin の形式で入力してください。例：13.0.13.16.2 または -1.19.19.17.19。",
         errorLongcountLarge: "長期暦に大きすぎる数値が含まれています。",
         errorLongcountRange: "標準的な係数を使用してください：Kʼatun 0–19、Tun 0–19、Winal 0–17、Kin 0–19。",
         footerPrefix: "長期暦の",
@@ -592,19 +637,22 @@
         gregorianLabel: "التاريخ الغريغوري:",
         settingsSummary: "إعدادات حساب Haabʼ",
         haabMode: "نمط Haabʼ:",
+        showExtendedCount: "إظهار العدّ الطويل الممتد",
+        extendedCountHint: "يضيف Piktun وKalabtun وKʼinchiltun وAlautun. ويظهر تلقائيًا للتواريخ التي تتجاوز النطاق المعتاد المكوّن من خمسة أجزاء.",
+        extendedAutomatic: "يُعرض العدّ الطويل الممتد تلقائيًا لأن هذا التاريخ خارج النطاق المعتاد المكوّن من خمسة أجزاء.",
         greatMode: "تصحيح Gran Wayebʼ وفق التقليد المجتمعي",
         standardMode: "Haabʼ القياسي المتواصل من 365 يومًا",
         settingsHint: "يستبدل نمط Gran Wayebʼ فترة Wayebʼ العادية ذات الأيام الخمسة في نهاية كل كتلة من 52 Haabʼ بفترة Gran Wayebʼ مدتها 13 يومًا وتُرقّم من 0 إلى 12. يثبت العد المقدم تاريخ 2013-01-02 بوصفه 0 Gran Wayebʼ. أما الخيار القياسي فيحافظ على دورة Haabʼ الكلاسيكية المتواصلة من 365 يومًا.",
-        gregorianHint: "مقبول: 2026-09-01 أو 2026.09.01 أو 2026/09/01. يمكن استخدام سنة سالبة للتواريخ قبل الميلاد.",
-        longcountHint: "الصيغة: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — مثال: 13.0.13.16.2.",
+        gregorianHint: "الترتيب: السنة، الشهر، اليوم. مقبول: 2026-12-31 أو 2026.12.31 أو 2026/12/31. يمكن استخدام سنة سالبة للتواريخ قبل الميلاد.",
+        longcountHint: "الصيغة: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — مثال: 13.0.13.16.2. تُطبّع المعاملات ذات الإشارة أو الخارجة عن النطاق.",
         noteStandard: "يستخدم ارتباط GMT بقيمة JDN 584283؛ Haabʼ قياسي متواصل من 365 يومًا؛ يبدأ ترقيم يوم Haabʼ من 0 (0–19؛ وWayebʼ من 0–4).",
         noteGreat: "يستخدم ارتباط GMT بقيمة JDN 584283؛ استبدال Gran Wayebʼ وفق التقليد المجتمعي والمرتبط بـ 2013-01-02 = 0 Gran Wayebʼ؛ يبدأ ترقيم يوم Haabʼ من 0 في الـ winal العادية.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "أدخل تاريخًا غريغوريًا بصيغة YYYY-MM-DD أو YYYY.MM.DD أو YYYY/MM/DD.",
+        errorGregorianFormat: "أدخل التاريخ الغريغوري بترتيب السنة، الشهر، اليوم: YYYY-MM-DD أو YYYY.MM.DD أو YYYY/MM/DD (مثال: 2026-12-31).",
         errorYear: "يجب أن تكون السنة الغريغورية عددًا صحيحًا غير 0. استخدم سنة سالبة للتواريخ قبل الميلاد (مثل -3114).",
         errorMonth: "يجب أن يكون الشهر الغريغوري بين 1 و12.",
         errorMonthDays: "يحتوي هذا الشهر على {days} يومًا في التقويم الغريغوري الاستباقي.",
-        errorLongcountFormat: "أدخل العدّ الطويل بصيغة Bʼakʼtun.Kʼatun.Tun.Winal.Kin، مثل 13.0.13.16.2.",
+        errorLongcountFormat: "أدخل خمسة أعداد صحيحة ذات إشارة بصيغة Bʼakʼtun.Kʼatun.Tun.Winal.Kin، مثل 13.0.13.16.2 أو -1.19.19.17.19.",
         errorLongcountLarge: "يحتوي العدّ الطويل على رقم كبير جدًا.",
         errorLongcountRange: "استخدم المعاملات القياسية: Kʼatun من 0–19، وTun من 0–19، وWinal من 0–17، وKin من 0–19.",
         footerPrefix: "احصل على ",
@@ -638,19 +686,22 @@
         gregorianLabel: "ग्रेगोरियन तिथि:",
         settingsSummary: "Haabʼ गणना सेटिंग्स",
         haabMode: "Haabʼ मोड:",
+        showExtendedCount: "विस्तारित लॉन्ग काउंट दिखाएँ",
+        extendedCountHint: "इसमें Piktun, Kalabtun, Kʼinchiltun और Alautun जोड़े जाते हैं। सामान्य पाँच-भाग सीमा से बाहर की तिथियों के लिए यह अपने आप दिखता है।",
+        extendedAutomatic: "यह तिथि सामान्य पाँच-भाग सीमा से बाहर है, इसलिए विस्तारित लॉन्ग काउंट अपने आप दिखाया गया है।",
         greatMode: "समुदाय-आधारित Gran Wayebʼ समायोजन",
         standardMode: "मानक निरंतर 365-दिवसीय Haabʼ",
         settingsHint: "Gran Wayebʼ मोड प्रत्येक 52-Haabʼ खंड के अंत में सामान्य पाँच-दिवसीय Wayebʼ को 0–12 क्रमांक वाले 13-दिवसीय Gran Wayebʼ से बदलता है। दिए गए गणना क्रम में 2013-01-02 को 0 Gran Wayebʼ माना गया है। मानक विकल्प पारंपरिक निरंतर 365-दिवसीय Haabʼ चक्र को बनाए रखता है।",
-        gregorianHint: "स्वीकृत प्रारूप: 2026-09-01, 2026.09.01 या 2026/09/01। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष का उपयोग किया जा सकता है।",
-        longcountHint: "प्रारूप: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — उदाहरण: 13.0.13.16.2।",
+        gregorianHint: "क्रम: वर्ष, महीना, दिन। स्वीकृत प्रारूप: 2026-12-31, 2026.12.31 या 2026/12/31। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष का उपयोग किया जा सकता है।",
+        longcountHint: "प्रारूप: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — उदाहरण: 13.0.13.16.2। चिह्नित या सीमा से बाहर के गुणांकों को सामान्यीकृत किया जाता है।",
         noteStandard: "GMT सहसंबंध JDN 584283 का उपयोग करता है; मानक निरंतर 365-दिवसीय Haabʼ; Haabʼ दिन आधार 0 (0–19; Wayebʼ 0–4)।",
         noteGreat: "GMT सहसंबंध JDN 584283 का उपयोग करता है; 2013-01-02 = 0 Gran Wayebʼ पर आधारित समुदाय-आधारित Gran Wayebʼ प्रतिस्थापन; सामान्य winal में Haabʼ दिन आधार 0।",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "ग्रेगोरियन तिथि YYYY-MM-DD, YYYY.MM.DD या YYYY/MM/DD प्रारूप में दर्ज करें।",
+        errorGregorianFormat: "ग्रेगोरियन तिथि वर्ष, महीना, दिन क्रम में दर्ज करें: YYYY-MM-DD, YYYY.MM.DD या YYYY/MM/DD (उदाहरण: 2026-12-31)।",
         errorYear: "ग्रेगोरियन वर्ष 0 के अलावा कोई पूर्णांक होना चाहिए। ईसा-पूर्व तिथियों के लिए ऋणात्मक वर्ष उपयोग करें (उदाहरण: -3114)।",
         errorMonth: "ग्रेगोरियन महीना 1 से 12 के बीच होना चाहिए।",
         errorMonthDays: "प्रोलेप्टिक ग्रेगोरियन कैलेंडर में इस महीने में {days} दिन हैं।",
-        errorLongcountFormat: "लॉन्ग काउंट को Bʼakʼtun.Kʼatun.Tun.Winal.Kin प्रारूप में दर्ज करें, उदाहरण: 13.0.13.16.2।",
+        errorLongcountFormat: "पाँच चिह्नित पूर्णांक Bʼakʼtun.Kʼatun.Tun.Winal.Kin प्रारूप में दर्ज करें, उदाहरण: 13.0.13.16.2 या -1.19.19.17.19।",
         errorLongcountLarge: "लॉन्ग काउंट में कोई संख्या बहुत बड़ी है।",
         errorLongcountRange: "मानक गुणांक उपयोग करें: Kʼatun 0–19, Tun 0–19, Winal 0–17 और Kin 0–19।",
         footerPrefix: "लॉन्ग काउंट का ",
@@ -684,19 +735,22 @@
         gregorianLabel: "Tanggal Gregorian:",
         settingsSummary: "Pengaturan perhitungan Haabʼ",
         haabMode: "Mode Haabʼ:",
+        showExtendedCount: "Tampilkan Hitungan Panjang Diperluas",
+        extendedCountHint: "Menambahkan Piktun, Kalabtun, Kʼinchiltun, dan Alautun. Tampilan ini muncul otomatis untuk tanggal di luar rentang lima bagian biasa.",
+        extendedAutomatic: "Hitungan Panjang Diperluas ditampilkan otomatis karena tanggal ini berada di luar rentang lima bagian biasa.",
         greatMode: "Penyesuaian Gran Wayebʼ komunitas",
         standardMode: "Haabʼ standar 365 hari berkesinambungan",
         settingsHint: "Mode Gran Wayebʼ mengganti Wayebʼ lima hari biasa pada akhir setiap blok 52 Haabʼ dengan Gran Wayebʼ 13 hari yang diberi nomor 0–12. Hitungan yang diberikan menetapkan 2013-01-02 sebagai 0 Gran Wayebʼ. Opsi standar mempertahankan siklus Haabʼ klasik 365 hari yang berkesinambungan.",
-        gregorianHint: "Diterima: 2026-09-01, 2026.09.01, atau 2026/09/01. Tahun negatif dapat digunakan untuk tanggal SM.",
-        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — contoh 13.0.13.16.2.",
+        gregorianHint: "Urutan: Tahun, Bulan, Hari. Diterima: 2026-12-31, 2026.12.31, atau 2026/12/31. Tahun negatif dapat digunakan untuk tanggal SM.",
+        longcountHint: "Format: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — contoh 13.0.13.16.2. Koefisien bertanda atau di luar rentang akan dinormalisasi.",
         noteStandard: "Menggunakan korelasi GMT JDN 584283; Haabʼ standar 365 hari berkesinambungan; dasar hari Haabʼ 0 (0–19; Wayebʼ 0–4).",
         noteGreat: "Menggunakan korelasi GMT JDN 584283; penggantian Gran Wayebʼ komunitas dengan acuan 2013-01-02 = 0 Gran Wayebʼ; dasar hari Haabʼ 0 untuk winal biasa.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "Masukkan tanggal Gregorian sebagai YYYY-MM-DD, YYYY.MM.DD, atau YYYY/MM/DD.",
+        errorGregorianFormat: "Masukkan tanggal Gregorian dalam urutan Tahun, Bulan, Hari: YYYY-MM-DD, YYYY.MM.DD, atau YYYY/MM/DD (contoh: 2026-12-31).",
         errorYear: "Tahun Gregorian harus berupa bilangan bulat selain 0. Gunakan tahun negatif untuk tanggal SM (misalnya -3114).",
         errorMonth: "Bulan Gregorian harus antara 1 dan 12.",
         errorMonthDays: "Bulan tersebut memiliki {days} hari dalam kalender Gregorian proleptik.",
-        errorLongcountFormat: "Masukkan Hitungan Panjang sebagai Bʼakʼtun.Kʼatun.Tun.Winal.Kin, misalnya 13.0.13.16.2.",
+        errorLongcountFormat: "Masukkan lima bilangan bulat bertanda sebagai Bʼakʼtun.Kʼatun.Tun.Winal.Kin, misalnya 13.0.13.16.2 atau -1.19.19.17.19.",
         errorLongcountLarge: "Hitungan Panjang berisi angka yang terlalu besar.",
         errorLongcountRange: "Gunakan koefisien kanonis: Kʼatun 0–19, Tun 0–19, Winal 0–17, dan Kin 0–19.",
         footerPrefix: "Dapatkan ",
@@ -730,19 +784,22 @@
         gregorianLabel: "Data gregoriana:",
         settingsSummary: "Configurações do cálculo do Haabʼ",
         haabMode: "Modo do Haabʼ:",
+        showExtendedCount: "Mostrar a Contagem Longa estendida",
+        extendedCountHint: "Adiciona Piktun, Kalabtun, Kʼinchiltun e Alautun. É exibida automaticamente para datas fora do intervalo habitual de cinco partes.",
+        extendedAutomatic: "A Contagem Longa estendida é exibida automaticamente porque esta data está fora do intervalo habitual de cinco partes.",
         greatMode: "Ajuste comunitário do Gran Wayebʼ",
         standardMode: "Haabʼ padrão contínuo de 365 dias",
         settingsHint: "O modo Gran Wayebʼ substitui o Wayebʼ regular de cinco dias no fim de cada bloco de 52 Haabʼ por um Gran Wayebʼ de 13 dias numerado de 0 a 12. A contagem fornecida fixa 2013-01-02 como 0 Gran Wayebʼ. A opção padrão preserva o ciclo clássico contínuo do Haabʼ de 365 dias.",
-        gregorianHint: "Aceita: 2026-09-01, 2026.09.01 ou 2026/09/01. Anos negativos podem ser usados para datas a.C.",
-        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por exemplo, 13.0.13.16.2.",
+        gregorianHint: "Ordem: Ano, Mês, Dia. Aceita: 2026-12-31, 2026.12.31 ou 2026/12/31. Anos negativos podem ser usados para datas a.C.",
+        longcountHint: "Formato: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — por exemplo, 13.0.13.16.2. Coeficientes com sinal ou fora do intervalo são normalizados.",
         noteStandard: "Usa a correlação GMT JDN 584283; Haabʼ padrão contínuo de 365 dias; base do dia Haabʼ 0 (0–19; Wayebʼ 0–4).",
         noteGreat: "Usa a correlação GMT JDN 584283; substituição comunitária do Gran Wayebʼ ancorada em 2013-01-02 = 0 Gran Wayebʼ; base do dia Haabʼ 0 para os winal comuns.",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "Insira uma data gregoriana como YYYY-MM-DD, YYYY.MM.DD ou YYYY/MM/DD.",
+        errorGregorianFormat: "Insira uma data gregoriana na ordem Ano, Mês, Dia: YYYY-MM-DD, YYYY.MM.DD ou YYYY/MM/DD (por exemplo, 2026-12-31).",
         errorYear: "O ano gregoriano deve ser um número inteiro diferente de 0. Use um ano negativo para datas a.C. (por exemplo, -3114).",
         errorMonth: "O mês gregoriano deve estar entre 1 e 12.",
         errorMonthDays: "Esse mês tem {days} dias no calendário gregoriano proléptico.",
-        errorLongcountFormat: "Insira a Contagem Longa como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por exemplo, 13.0.13.16.2.",
+        errorLongcountFormat: "Insira cinco números inteiros com sinal como Bʼakʼtun.Kʼatun.Tun.Winal.Kin, por exemplo, 13.0.13.16.2 ou -1.19.19.17.19.",
         errorLongcountLarge: "A Contagem Longa contém um número grande demais.",
         errorLongcountRange: "Use coeficientes canônicos: Kʼatun 0–19, Tun 0–19, Winal 0–17 e Kin 0–19.",
         footerPrefix: "Obtenha a ",
@@ -776,19 +833,22 @@
         gregorianLabel: "গ্রেগরিয়ান তারিখ:",
         settingsSummary: "Haabʼ গণনার সেটিংস",
         haabMode: "Haabʼ মোড:",
+        showExtendedCount: "বর্ধিত লং কাউন্ট দেখান",
+        extendedCountHint: "এতে Piktun, Kalabtun, Kʼinchiltun ও Alautun যোগ হয়। সাধারণ পাঁচ-অংশের সীমার বাইরের তারিখে এটি স্বয়ংক্রিয়ভাবে দেখানো হয়।",
+        extendedAutomatic: "এই তারিখটি সাধারণ পাঁচ-অংশের সীমার বাইরে হওয়ায় বর্ধিত লং কাউন্ট স্বয়ংক্রিয়ভাবে দেখানো হয়েছে।",
         greatMode: "কমিউনিটি Gran Wayebʼ সমন্বয়",
         standardMode: "মানক ধারাবাহিক 365 দিনের Haabʼ",
         settingsHint: "Gran Wayebʼ মোডে প্রতি 52-Haabʼ পর্বের শেষে সাধারণ পাঁচ দিনের Wayebʼ-এর বদলে 0–12 নম্বরের 13 দিনের Gran Wayebʼ ব্যবহৃত হয়। প্রদত্ত গণনায় 2013-01-02 হলো 0 Gran Wayebʼ। মানক বিকল্পটি Haabʼ-এর ধ্রুপদি ধারাবাহিক 365 দিনের চক্র বজায় রাখে।",
-        gregorianHint: "গ্রহণযোগ্য: 2026-09-01, 2026.09.01 অথবা 2026/09/01। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করা যায়।",
-        longcountHint: "বিন্যাস: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — উদাহরণ 13.0.13.16.2।",
+        gregorianHint: "ক্রম: বছর, মাস, দিন। গ্রহণযোগ্য: 2026-12-31, 2026.12.31 অথবা 2026/12/31। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করা যায়।",
+        longcountHint: "বিন্যাস: Bʼakʼtun.Kʼatun.Tun.Winal.Kin — উদাহরণ 13.0.13.16.2। চিহ্নযুক্ত বা সীমার বাইরের সহগ স্বাভাবিক করা হয়।",
         noteStandard: "GMT correlation JDN 584283 ব্যবহার করে; মানক ধারাবাহিক 365 দিনের Haabʼ; Haabʼ দিনের ভিত্তি 0 (0–19; Wayebʼ 0–4)।",
         noteGreat: "GMT correlation JDN 584283 ব্যবহার করে; 2013-01-02 = 0 Gran Wayebʼ-কে ভিত্তি করে কমিউনিটি Gran Wayebʼ প্রতিস্থাপন; সাধারণ winal-এর Haabʼ দিনের ভিত্তি 0।",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "গ্রেগরিয়ান তারিখ YYYY-MM-DD, YYYY.MM.DD অথবা YYYY/MM/DD বিন্যাসে লিখুন।",
+        errorGregorianFormat: "গ্রেগরিয়ান তারিখ বছর, মাস, দিন ক্রমে লিখুন: YYYY-MM-DD, YYYY.MM.DD অথবা YYYY/MM/DD (উদাহরণ: 2026-12-31)।",
         errorYear: "গ্রেগরিয়ান বছর 0 ছাড়া একটি পূর্ণসংখ্যা হতে হবে। খ্রিস্টপূর্ব তারিখের জন্য ঋণাত্মক বছর ব্যবহার করুন (যেমন -3114)।",
         errorMonth: "গ্রেগরিয়ান মাস 1 থেকে 12-এর মধ্যে হতে হবে।",
         errorMonthDays: "প্রোলেপ্টিক গ্রেগরিয়ান ক্যালেন্ডারে ওই মাসে {days} দিন আছে।",
-        errorLongcountFormat: "লং কাউন্ট Bʼakʼtun.Kʼatun.Tun.Winal.Kin বিন্যাসে লিখুন, যেমন 13.0.13.16.2।",
+        errorLongcountFormat: "পাঁচটি চিহ্নযুক্ত পূর্ণসংখ্যা Bʼakʼtun.Kʼatun.Tun.Winal.Kin বিন্যাসে লিখুন, যেমন 13.0.13.16.2 অথবা -1.19.19.17.19।",
         errorLongcountLarge: "লং কাউন্টে একটি সংখ্যা অত্যন্ত বড়।",
         errorLongcountRange: "মানক সহগ ব্যবহার করুন: Kʼatun 0–19, Tun 0–19, Winal 0–17 এবং Kin 0–19।",
         footerPrefix: "লং কাউন্টের ",
@@ -822,19 +882,22 @@
         gregorianLabel: "格里曆日期：",
         settingsSummary: "Haabʼ 計算設定",
         haabMode: "Haabʼ 模式：",
+        showExtendedCount: "顯示擴展長紀曆",
+        extendedCountHint: "加入 Piktun、Kalabtun、Kʼinchiltun 與 Alautun。日期超出一般五段式範圍時會自動顯示。",
+        extendedAutomatic: "此日期超出一般五段式範圍，因此已自動顯示擴展長紀曆。",
         greatMode: "社群 Gran Wayebʼ 校正",
         standardMode: "標準連續 365 日 Haabʼ",
         settingsHint: "Gran Wayebʼ 模式會在每個 52 Haabʼ 區段末尾，以編號 0–12 的 13 日 Gran Wayebʼ 取代一般的 5 日 Wayebʼ。所提供的計數以 2013-01-02 為 0 Gran Wayebʼ。標準模式則保留傳統連續 365 日的 Haabʼ 週期。",
-        gregorianHint: "可輸入：2026-09-01、2026.09.01 或 2026/09/01。西元前日期可使用負數年份。",
-        longcountHint: "格式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin，例如 13.0.13.16.2。",
+        gregorianHint: "順序：年、月、日。可輸入：2026-12-31、2026.12.31 或 2026/12/31。西元前日期可使用負數年份。",
+        longcountHint: "格式：Bʼakʼtun.Kʼatun.Tun.Winal.Kin，例如 13.0.13.16.2。帶正負號或超出範圍的係數會自動正規化。",
         noteStandard: "採用 GMT 對應常數 JDN 584283；標準連續 365 日 Haabʼ；Haabʼ 日期以 0 起算（0–19；Wayebʼ 0–4）。",
         noteGreat: "採用 GMT 對應常數 JDN 584283；社群 Gran Wayebʼ 取代規則以 2013-01-02 = 0 Gran Wayebʼ 為錨點；一般 winal 的 Haabʼ 日期以 0 起算。",
         granWayeb: "Gran Wayebʼ",
-        errorGregorianFormat: "請以 YYYY-MM-DD、YYYY.MM.DD 或 YYYY/MM/DD 格式輸入格里曆日期。",
+        errorGregorianFormat: "請依年、月、日順序輸入格里曆日期：YYYY-MM-DD、YYYY.MM.DD 或 YYYY/MM/DD（例如 2026-12-31）。",
         errorYear: "格里曆年份必須是非 0 的整數。西元前日期請使用負數年份（例如 -3114）。",
         errorMonth: "格里曆月份必須介於 1 到 12。",
         errorMonthDays: "在推算格里曆中，該月份共有 {days} 日。",
-        errorLongcountFormat: "請以 Bʼakʼtun.Kʼatun.Tun.Winal.Kin 格式輸入長紀曆，例如 13.0.13.16.2。",
+        errorLongcountFormat: "請依 Bʼakʼtun.Kʼatun.Tun.Winal.Kin 格式輸入五個可帶正負號的整數，例如 13.0.13.16.2 或 -1.19.19.17.19。",
         errorLongcountLarge: "長紀曆中有一個數值過大。",
         errorLongcountRange: "請使用標準係數：Kʼatun 0–19、Tun 0–19、Winal 0–17、Kin 0–19。",
         footerPrefix: "取得長紀曆的",
@@ -905,7 +968,7 @@
       const type = document.getElementById("conversionType").value;
       const isGregorian = type === "gregorian";
       setText("dateInputLabel", isGregorian ? t("gregorianDate") : t("longcountDate"));
-      document.getElementById("dateInput").placeholder = isGregorian ? "2026-09-01" : "13.0.13.16.2";
+      document.getElementById("dateInput").placeholder = isGregorian ? "2026-12-31" : "13.0.13.16.2";
       setText("dateHint", isGregorian ? t("gregorianHint") : t("longcountHint"));
 
       if (clear) {
@@ -948,6 +1011,8 @@
       setText("resultGregorianLabel", t("gregorianLabel"));
       setText("settingsSummary", t("settingsSummary"));
       setText("haabModeLabel", t("haabMode"));
+      setText("showExtendedCountLabel", t("showExtendedCount"));
+      setText("extendedCountHint", t("extendedCountHint"));
       setText("greatModeOption", t("greatMode"));
       setText("standardModeOption", t("standardMode"));
       setText("settingsHint", t("settingsHint"));
@@ -1045,6 +1110,20 @@
       return { b, k, t, u, kin, days };
     }
 
+    function jdnToExtendedLongCount(jdn) {
+      const days = jdn - CORR_JDN;
+      let rem, alautun, kinchiltun, kalabtun, piktun, b, k, t, u, kin;
+      [alautun, rem] = divmodFloor(days, ALAUTUN_DAYS);
+      [kinchiltun, rem] = divmodFloor(rem, KINCHILTUN_DAYS);
+      [kalabtun, rem] = divmodFloor(rem, KALABTUN_DAYS);
+      [piktun, rem] = divmodFloor(rem, PIKTUN_DAYS);
+      [b, rem] = divmodFloor(rem, BAKTUN_DAYS);
+      [k, rem] = divmodFloor(rem, 7200);
+      [t, rem] = divmodFloor(rem, 360);
+      [u, kin] = divmodFloor(rem, 20);
+      return { alautun, kinchiltun, kalabtun, piktun, b, k, t, u, kin };
+    }
+
     function longCountToJDN(b, k, t, u, kin) {
       const days = b * 144000 + k * 7200 + t * 360 + u * 20 + kin;
       return CORR_JDN + days;
@@ -1106,12 +1185,19 @@
     function calendarDataFromJDN(jdn) {
       const greg = jdnToGregorian(jdn);
       const { b, k, t, u, kin, days } = jdnToLongCount(jdn);
+      const extended = jdnToExtendedLongCount(jdn);
+      const autoExtended = Math.abs(b) >= 20;
+      const displayExtended = autoExtended || Boolean(document.getElementById("showExtendedCount")?.checked);
       const tz = cholqijFromDays(days);
       const ha = haabForJDN(jdn, days);
       const lord = lordFromDays(days);
 
-      const lcNums = `${b}.${k}.${t}.${u}.${kin}`;
-      const longCount = `${b} Bʼakʼtun, ${k} Kʼatun, ${t} Tun, ${u} Winal, ${kin} Kin`;
+      const standardLcNums = `${b}.${k}.${t}.${u}.${kin}`;
+      const extendedLcNums = `${extended.alautun}.${extended.kinchiltun}.${extended.kalabtun}.${extended.piktun}.${extended.b}.${extended.k}.${extended.t}.${extended.u}.${extended.kin}`;
+      const lcNums = displayExtended ? extendedLcNums : standardLcNums;
+      const standardLongCount = `${b} Bʼakʼtun, ${k} Kʼatun, ${t} Tun, ${u} Winal, ${kin} Kin`;
+      const extendedLongCount = `${extended.alautun} Alautun, ${extended.kinchiltun} Kʼinchiltun, ${extended.kalabtun} Kalabtun, ${extended.piktun} Piktun, ${extended.b} Bʼakʼtun, ${extended.k} Kʼatun, ${extended.t} Tun, ${extended.u} Winal, ${extended.kin} Kin`;
+      const longCount = displayExtended ? extendedLongCount : standardLongCount;
       const cholqijFull = `${tz.number} ${tz.name}`;
       const haabFull = `${ha.day} ${ha.month}`;
       const diary = `${lcNums} - ${cholqijFull} - ${haabFull} - ${lord} - ${greg.iso}`;
@@ -1119,7 +1205,7 @@
       return {
         jdn,
         greg,
-        b, k, t, u, kin,
+        b, k, t, u, kin, extended, displayExtended, autoExtended,
         cholqijNumber: tz.number,
         cholqijName: tz.name,
         haabDay: ha.day,
@@ -1162,17 +1248,14 @@
 
     function parseLongCountInput(text) {
       const s = text.trim();
-      const match = s.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-      if (!match) {
+      const parts = s.split(/\s*\.\s*|\s+/);
+      if (parts.length !== 5 || !parts.every(part => /^-?\d+$/.test(part))) {
         throw new Error(t("errorLongcountFormat"));
       }
 
-      const [b, k, t, u, kin] = match.slice(1).map(Number);
+      const [b, k, t, u, kin] = parts.map(Number);
       if (![b, k, t, u, kin].every(Number.isSafeInteger)) {
         throw new Error(t("errorLongcountLarge"));
-      }
-      if (k < 0 || k > 19 || t < 0 || t > 19 || u < 0 || u > 17 || kin < 0 || kin > 19) {
-        throw new Error(t("errorLongcountRange"));
       }
 
       return { b, k, t, u, kin };
@@ -1193,7 +1276,15 @@
 
       const lordLabel = t("lordLabel").replace(/[:：]\s*$/, "");
       const entries = [
-        { value: data.b, label: "Bʼakʼtun" },
+        ...(data.displayExtended ? [
+          { value: data.extended.alautun, label: "Alautun" },
+          { value: data.extended.kinchiltun, label: "Kʼinchiltun" },
+          { value: data.extended.kalabtun, label: "Kalabtun" },
+          { value: data.extended.piktun, label: "Piktun" },
+          { value: data.extended.b, label: "Bʼakʼtun" }
+        ] : [
+          { value: data.b, label: "Bʼakʼtun" }
+        ]),
         { value: data.k, label: "Kʼatun" },
         { value: data.t, label: "Tun" },
         { value: data.u, label: "Winal" },
@@ -1239,6 +1330,9 @@
       document.getElementById("lord").innerText = data.lord;
       document.getElementById("diary").innerText = data.diary;
       renderMayanCalendar("todayMayanNumerals", data);
+      const extendedNote = document.getElementById("todayExtendedNote");
+      extendedNote.innerText = data.autoExtended ? t("extendedAutomatic") : "";
+      extendedNote.hidden = !data.autoExtended;
 
       const mode = document.getElementById("haabMode").value;
       document.getElementById("calculationNote").innerText = mode === "standard"
@@ -1254,6 +1348,9 @@
       document.getElementById("resultLord").innerText = data.lord;
       document.getElementById("resultGregorian").innerText = data.greg.iso;
       renderMayanCalendar("resultMayanNumerals", data);
+      const extendedNote = document.getElementById("resultExtendedNote");
+      extendedNote.innerText = data.autoExtended ? t("extendedAutomatic") : "";
+      extendedNote.hidden = !data.autoExtended;
       document.getElementById("conversionResult").hidden = false;
     }
 
@@ -1305,6 +1402,13 @@
     document.getElementById("haabMode").addEventListener("change", () => {
       renderToday();
       // Re-run the current conversion, if one is visible, so the Haab' output changes immediately.
+      if (!document.getElementById("conversionResult").hidden && document.getElementById("dateInput").value.trim()) {
+        convertEnteredDate();
+      }
+    });
+
+    document.getElementById("showExtendedCount").addEventListener("change", () => {
+      renderToday();
       if (!document.getElementById("conversionResult").hidden && document.getElementById("dateInput").value.trim()) {
         convertEnteredDate();
       }
