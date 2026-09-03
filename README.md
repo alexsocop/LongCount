@@ -7,7 +7,7 @@ The project includes a browser-based interface in `kin.html` and a command-line 
 - Live application: <https://alexsocop.github.io/LongCount/kin.html>
 - Source code: <https://github.com/alexsocop/LongCount>
 
-Contributions, corrections, and culturally informed review are welcome.
+Contributions, corrections, translation improvements, and culturally informed review are welcome.
 
 ---
 
@@ -21,12 +21,16 @@ The browser application can:
 - calculate the 260-day **Cholqʼij** cycle using Kʼicheʼ day names;
 - calculate the **Haabʼ** in either standard or Community Gran Wayebʼ mode;
 - calculate the **Lords of the Night** (`G1`–`G9`);
+- display the calendar in a two-column Mayan-numeral arrangement;
+- optionally display the Extended Long Count from Alautun through Kin;
+- switch automatically to the Extended Long Count for sufficiently distant dates;
+- accept signed Long Count components and normalize noncanonical input;
 - select an interface language from the page;
 - detect the userʼs preferred browser language;
 - remember a manually selected language when browser storage is available; and
 - support right-to-left layout for Arabic.
 
-The Python version also provides an arrow-key terminal interface, preserves command-line use, and can display an Extended Long Count.
+The Python version also provides an arrow-key terminal interface, preserves command-line use, and supports configurable correlation, Haabʼ numbering, and strict Long Count validation.
 
 ---
 
@@ -71,6 +75,7 @@ This difference is intentional. The Long Count, Cholqʼij, Lord of the Night, an
 The converter also displays:
 
 - the Long Count components;
+- a two-column calendar arrangement using Unicode Mayan numerals;
 - the Cholqʼij number and day name;
 - the Haabʼ day and period;
 - the Lord of the Night; and
@@ -78,7 +83,7 @@ The converter also displays:
 
 ### Extended Long Count
 
-The command-line version can display:
+Both the browser and command-line versions can display:
 
 ```text
 Alautun.Kʼinchiltun.Kalabtun.Piktun.Bʼakʼtun.Kʼatun.Tun.Winal.Kin
@@ -92,6 +97,51 @@ The larger units are:
 | Kalabtun | 20 Piktun | 57,600,000 |
 | Kʼinchiltun | 20 Kalabtun | 1,152,000,000 |
 | Alautun | 20 Kʼinchiltun | 23,040,000,000 |
+
+In `kin.html`, users can select **Show the Extended Long Count** in the calculation settings. For an ordinary contemporary date, the four higher positions are zero. When the normalized Bʼakʼtun position reaches `20` or `-20`, the browser displays the extended form automatically, even if the option has not been selected.
+
+For example:
+
+```text
+20.0.0.0.0
+```
+
+is displayed automatically in extended form as:
+
+```text
+0.0.0.1.0.0.0.0.0
+```
+
+The extended notation used by this project is a practical computational representation. Extremely large Alautun values should not be interpreted as a claim about historically attested calendrical notation.
+
+### Mayan numeral display
+
+The browser displays numerical coefficients with the Unicode **Mayan Numerals** characters `U+1D2E0–U+1D2F3`, representing the values `0–19`.
+
+The regular display follows a two-column, zig-zag reading order:
+
+| Left column | Right column |
+|---|---|
+| Bʼakʼtun | Kʼatun |
+| Tun | Winal |
+| Kin | Cholqʼij |
+| Haabʼ | Lord of the Night |
+
+When the Extended Long Count is displayed, its four higher positions are placed before Bʼakʼtun while the remaining calendrical values retain their order.
+
+The numeral font is hosted locally rather than loaded from an external service:
+
+```text
+assets/fonts/NotoSansMayanNumerals-Regular.woff2
+```
+
+Its license is stored alongside it:
+
+```text
+assets/fonts/OFL.txt
+```
+
+The relative directory structure must be preserved. Uploading `kin.html` without the `assets/fonts/` files may cause the specialized Mayan numeral characters to depend on fonts installed on the visitorʼs device.
 
 ---
 
@@ -419,16 +469,22 @@ Open `kin.html` directly in a modern browser or serve it through GitHub Pages. T
 Accepted formats include:
 
 ```text
-2026-09-01
-2026.09.01
-2026/09/01
+2026-12-31
+2026.12.31
+2026/12/31
 ```
 
-Negative years can be used for BCE dates. Year zero is rejected.
+The required order is:
+
+```text
+Year, Month, Day
+```
+
+Negative years can be used for BCE dates. Year zero is rejected. The input hint and validation message explain this order in every supported interface language.
 
 ### Long Count input
 
-Use five canonical components:
+Enter five signed integer components:
 
 ```text
 Bʼakʼtun.Kʼatun.Tun.Winal.Kin
@@ -440,7 +496,14 @@ Example:
 13.0.13.16.2
 ```
 
-The HTML validates these component ranges:
+Negative components are accepted, allowing dates before `0.0.0.0.0`. Components outside their canonical ranges are converted to total elapsed days and normalized automatically. For example:
+
+```text
+0.0.0.0.-1  → -1.19.19.17.19
+13.0.0.0.-1 → 12.19.19.17.19
+```
+
+The converter accepts either dots or whitespace between the five components. The resulting normalized count uses the canonical ranges:
 
 ```text
 Kʼatun: 0–19
@@ -449,7 +512,19 @@ Winal:  0–17
 Kin:    0–19
 ```
 
-The browser converter currently accepts a non-negative Bʼakʼtun component.
+Unlike the Python command-line programʼs optional `--strict-lc` mode, the browser always normalizes valid signed integer input.
+
+### Extended display setting
+
+Open **Haabʼ calculation settings** and select **Show the Extended Long Count** to display:
+
+```text
+Alautun.Kʼinchiltun.Kalabtun.Piktun.Bʼakʼtun.Kʼatun.Tun.Winal.Kin
+```
+
+The setting updates todayʼs date and any visible conversion immediately. It affects presentation only; it does not alter the JDN or any calendar calculation.
+
+For normalized dates at or beyond `±20 Bʼakʼtun`, extended display is automatic. A translated notice explains why the longer format is being shown.
 
 ---
 
@@ -473,6 +548,8 @@ The Kʼicheʼ version has been revised independently within the project. Technic
 The interface uses **Cholqʼij** as the primary Kʼicheʼ-oriented name, with **Tzolkʼin** included parenthetically in some interface labels for cross-reference. Internal variables and functions likewise use `cholqij` rather than `tzolkin`.
 
 Calendar notations and names such as `13.0.13.16.2`, `Iqʼ`, `Ajpuʼ`, `Keme`, `Kumkʼu`, `Wayebʼ`, and `Gran Wayebʼ` remain calendar terms across interface languages.
+
+The Gregorian input example, Year–Month–Day explanation, signed Long Count guidance, Extended Long Count setting, and automatic-display notice are available in all ten interface languages. Community review and corrections to translations remain welcome.
 
 ---
 
@@ -543,6 +620,15 @@ Under the existing command-line design, normal mode can normalize out-of-range c
 python long_count.py --help
 ```
 
+### Engine differences between Python and HTML
+
+The two implementations now share the principal conversion behavior, including signed five-part Long Count input, automatic normalization, Extended Long Count output, and the two Haabʼ modes. Some deliberate differences remain:
+
+- Python integers have arbitrary precision, while the browser implementation uses JavaScript safe integers.
+- Python provides optional strict Long Count validation through `--strict-lc`; the HTML normalizes input automatically.
+- Python can change the correlation constant and Haabʼ day-numbering base at runtime; the HTML keeps GMT JDN `584283` and zero-based Haabʼ numbering fixed.
+- The terminal and browser interfaces are intentionally different. The browser prioritizes a compact graphical presentation, while Python provides keyboard-driven menus and command-line flags.
+
 ---
 
 ## Mathematical principles
@@ -573,10 +659,24 @@ The implementation relies on:
 - Internal 260-day-cycle identifiers use `cholqij` terminology.
 - The Kʼicheʼ day name is `Keme`.
 - The HTML supports bidirectional Gregorian/Long Count conversion.
+- Gregorian guidance uses `2026-12-31` to make the Year–Month–Day order explicit in every interface language.
+- The HTML accepts negative and noncanonical five-part Long Count input and normalizes it automatically.
+- The HTML provides optional Extended Long Count output and activates it automatically at `±20 Bʼakʼtun` and beyond.
+- The Mayan-numeral display expands to include higher Long Count positions when extended output is active.
+- Unicode Mayan numerals are arranged in two columns and read row by row in zig-zag order.
+- `NotoSansMayanNumerals-Regular.woff2` is hosted locally under `assets/fonts/`.
 - The browser interface supports ten languages and right-to-left layout for Arabic.
 
 ---
 
 ## License
 
-See the repositoryʼs license file for the terms that apply to this project.
+See the repositoryʼs main license file for the terms that apply to the projectʼs source code.
+
+The locally hosted **Noto Sans Mayan Numerals** font is distributed under the SIL Open Font License. Its license text is included separately at:
+
+```text
+assets/fonts/OFL.txt
+```
+
+The font license does not replace or modify the license applied to the projectʼs own source code.
