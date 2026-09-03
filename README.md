@@ -26,7 +26,7 @@ The browser application can:
 - remember a manually selected language when browser storage is available; and
 - support right-to-left layout for Arabic.
 
-The Python version also supports interactive and command-line use and can display an Extended Long Count.
+The Python version also provides an arrow-key terminal interface, preserves command-line use, and can display an Extended Long Count.
 
 ---
 
@@ -478,11 +478,26 @@ Calendar notations and names such as `13.0.13.16.2`, `Iqʼ`, `Ajpuʼ`, `Keme`, `
 
 ## Python command-line version
 
-### Interactive mode
+### Interactive terminal mode
 
 ```bash
 python long_count.py
 ```
+
+When started without a conversion flag, the program opens a terminal interface that:
+
+- asks the user to select the Community Gran Wayebʼ or standard Haabʼ calculation at startup;
+- displays todayʼs Maya calendar date automatically;
+- accepts Gregorian dates in the same one-line formats as the HTML;
+- accepts a five-part Long Count on one line;
+- remembers the last displayed date during the session;
+- can show that date in Extended Long Count format;
+- allows the Haabʼ mode, day-numbering base, and correlation constant to be changed without restarting; and
+- recalculates the last displayed date after a setting changes.
+
+In an interactive terminal, navigate with `↑` and `↓`, then press `Enter`. Number keys can select an item directly, and `Q` returns to the preceding menu. When raw-key navigation is unavailable, the program automatically presents an ordinary numbered menu instead.
+
+The interactive interface uses only the Python standard library; it does not require an additional menu package.
 
 ### Convert from Gregorian
 
@@ -500,6 +515,20 @@ python long_count.py --from-lc 13 0 0 0 0
 
 ```bash
 python long_count.py --corr 584283 --from-gregorian 2012 12 21
+```
+
+### Select the Haabʼ mode
+
+Community Gran Wayebʼ mode is the default, matching the browser application:
+
+```bash
+python long_count.py --haab-mode great --from-gregorian 2012 12 21
+```
+
+Use the uninterrupted 365-day Haabʼ with:
+
+```bash
+python long_count.py --haab-mode standard --from-gregorian 2012 12 21
 ```
 
 ### Strict Long Count input
@@ -533,6 +562,7 @@ The implementation relies on:
 - Haabʼ numbering is zero-based.
 - The standard Haabʼ remains a continuous 365-day cycle.
 - Community Gran Wayebʼ mode is the default browser setting.
+- Community Gran Wayebʼ mode is also the default Python setting and can be changed with `--haab-mode standard`.
 - Gran Wayebʼ replaces the final regular five-day Wayebʼ of each 52-Haab block.
 - Gran Wayebʼ contains 13 days numbered `0–12`.
 - The confirmed anchor is `2013-01-02 = 0 Gran Wayebʼ`.
