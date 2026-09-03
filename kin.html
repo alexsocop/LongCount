@@ -14,6 +14,9 @@
   <meta charset="UTF-8" />
   <title>Mayan Calendar – Today</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mayan+Numerals&display=swap" rel="stylesheet" />
   <style>
     :root {
       color-scheme: light dark;
@@ -140,6 +143,53 @@
       font-size: clamp(24px, 3.2vw, 38px);
     }
 
+    .mayan-calendar-panel {
+      margin: 24px auto 34px;
+    }
+
+    .mayan-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      width: min(100%, 560px);
+      margin: 10px auto 0;
+      direction: ltr;
+    }
+
+    .mayan-calendar-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 132px;
+      padding: 14px 10px;
+      border: 1px solid #aaa;
+      border-radius: 14px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    .mayan-number {
+      font-family: "Noto Sans Mayan Numerals", sans-serif;
+      font-size: clamp(52px, 10vw, 82px);
+      line-height: 1;
+      font-weight: 400;
+    }
+
+    .mayan-number.fallback-number {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-size: clamp(34px, 7vw, 54px);
+    }
+
+    .mayan-calendar-label {
+      margin-top: 8px;
+      font-size: clamp(15px, 2.6vw, 19px);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+      unicode-bidi: plaintext;
+    }
+
     details.settings {
       max-width: 760px;
       margin: 14px auto;
@@ -190,6 +240,11 @@
   <p class="label" id="diaryLabel">Diary Format:</p>
   <p class="value" id="diary"></p>
 
+  <section class="mayan-calendar-panel" aria-labelledby="todayMayanNumeralsLabel">
+    <p class="label" id="todayMayanNumeralsLabel">Todayʼs calendar in Mayan numerals:</p>
+    <div class="mayan-calendar-grid" id="todayMayanNumerals"></div>
+  </section>
+
   <p class="label" id="todayLongcountLabel">Todayʼs Long Count:</p>
   <p class="value" id="longcount"></p>
 
@@ -234,6 +289,11 @@
 
       <p class="label" id="resultDiaryLabel">Diary Format:</p>
       <p class="value" id="resultDiary"></p>
+
+      <section class="mayan-calendar-panel" aria-labelledby="resultMayanNumeralsLabel">
+        <p class="label" id="resultMayanNumeralsLabel">Calendar in Mayan numerals:</p>
+        <div class="mayan-calendar-grid" id="resultMayanNumerals"></div>
+      </section>
 
       <p class="label" id="resultLongcountLabel">Long Count:</p>
       <p class="value" id="resultLongcount"></p>
@@ -321,6 +381,8 @@
         pageTitle: "Mayan Calendar – Today",
         language: "Language:",
         diaryFormat: "Diary Format:",
+        todayMayanNumerals: "Todayʼs calendar in Mayan numerals:",
+        mayanNumeralsLabel: "Calendar in Mayan numerals:",
         todayLongcount: "Todayʼs Long Count:",
         todayCholqij: "Todayʼs Cholqʼij (Tzolkʼin) Day (Kʼicheʼ name):",
         todayHaab: "Todayʼs Haabʼ Day (Yucatec name):",
@@ -365,6 +427,8 @@
         pageTitle: "Calendario maya – Hoy",
         language: "Idioma:",
         diaryFormat: "Formato de diario:",
+        todayMayanNumerals: "Calendario maya de hoy en numerales mayas:",
+        mayanNumeralsLabel: "Calendario maya en numerales mayas:",
         todayLongcount: "Cuenta Larga de hoy:",
         todayCholqij: "Cholqʼij (Tzolkʼin) de hoy (nombre kʼicheʼ):",
         todayHaab: "Día Haabʼ de hoy (nombre yucateco):",
@@ -409,6 +473,8 @@
         pageTitle: "Mayabʼ Cholbʼal Qʼij – Kamik",
         language: "Chʼabʼal:",
         diaryFormat: "Rubʼeyal tzʼibʼanik:",
+        todayMayanNumerals: "Mayabʼ Cholbʼal Qʼij rech kamik pa mayabʼ ajilabʼal:",
+        mayanNumeralsLabel: "Mayabʼ Cholbʼal Qʼij pa mayabʼ ajilabʼal:",
         todayLongcount: "Cuenta Larga rech kamik:",
         todayCholqij: "Cholqʼij rech kamik (Kʼicheʼ bʼiʼaj):",
         todayHaab: "Haabʼ rech kamik (Yucatec bʼiʼaj):",
@@ -453,6 +519,8 @@
         pageTitle: "マヤ暦 – 今日",
         language: "言語：",
         diaryFormat: "日記形式：",
+        todayMayanNumerals: "今日のマヤ暦（マヤ数字）：",
+        mayanNumeralsLabel: "マヤ暦（マヤ数字）：",
         todayLongcount: "今日の長期暦：",
         todayCholqij: "今日の Cholqʼij（Tzolkʼin）日（Kʼicheʼ名）：",
         todayHaab: "今日の Haabʼ 日（ユカテコ・マヤ語名）：",
@@ -497,6 +565,8 @@
         pageTitle: "تقويم المايا – اليوم",
         language: "اللغة:",
         diaryFormat: "صيغة السجل:",
+        todayMayanNumerals: "تقويم المايا اليوم بالأرقام المايانية:",
+        mayanNumeralsLabel: "تقويم المايا بالأرقام المايانية:",
         todayLongcount: "العدّ الطويل لليوم:",
         todayCholqij: "يوم Cholqʼij (Tzolkʼin) اليوم (بالاسم الكيتشيʼ):",
         todayHaab: "يوم Haabʼ اليوم (بالاسم اليوكاتيكي):",
@@ -541,6 +611,8 @@
         pageTitle: "माया कैलेंडर – आज",
         language: "भाषा:",
         diaryFormat: "डायरी प्रारूप:",
+        todayMayanNumerals: "आज का माया कैलेंडर माया अंकों में:",
+        mayanNumeralsLabel: "माया कैलेंडर माया अंकों में:",
         todayLongcount: "आज की लॉन्ग काउंट:",
         todayCholqij: "आज का Cholqʼij (Tzolkʼin) दिन (Kʼicheʼ नाम):",
         todayHaab: "आज का Haabʼ दिन (युकातेको नाम):",
@@ -585,6 +657,8 @@
         pageTitle: "Kalender Maya – Hari Ini",
         language: "Bahasa:",
         diaryFormat: "Format catatan:",
+        todayMayanNumerals: "Kalender Maya hari ini dalam angka Maya:",
+        mayanNumeralsLabel: "Kalender Maya dalam angka Maya:",
         todayLongcount: "Hitungan Panjang hari ini:",
         todayCholqij: "Hari Cholqʼij (Tzolkʼin) hari ini (nama Kʼicheʼ):",
         todayHaab: "Hari Haabʼ hari ini (nama Yucatec):",
@@ -629,6 +703,8 @@
         pageTitle: "Calendário Maia – Hoje",
         language: "Idioma:",
         diaryFormat: "Formato de diário:",
+        todayMayanNumerals: "Calendário maia de hoje em numerais maias:",
+        mayanNumeralsLabel: "Calendário maia em numerais maias:",
         todayLongcount: "Contagem Longa de hoje:",
         todayCholqij: "Dia Cholqʼij (Tzolkʼin) de hoje (nome Kʼicheʼ):",
         todayHaab: "Dia Haabʼ de hoje (nome iucateque):",
@@ -673,6 +749,8 @@
         pageTitle: "মায়া ক্যালেন্ডার – আজ",
         language: "ভাষা:",
         diaryFormat: "ডায়েরি বিন্যাস:",
+        todayMayanNumerals: "মায়া সংখ্যায় আজকের মায়া ক্যালেন্ডার:",
+        mayanNumeralsLabel: "মায়া সংখ্যায় মায়া ক্যালেন্ডার:",
         todayLongcount: "আজকের লং কাউন্ট:",
         todayCholqij: "আজকের Cholqʼij (Tzolkʼin) দিন (Kʼicheʼ নাম):",
         todayHaab: "আজকের Haabʼ দিন (ইউকাতেক নাম):",
@@ -717,6 +795,8 @@
         pageTitle: "瑪雅曆法－今日",
         language: "語言：",
         diaryFormat: "日誌格式：",
+        todayMayanNumerals: "今日瑪雅曆法（瑪雅數字）：",
+        mayanNumeralsLabel: "瑪雅曆法（瑪雅數字）：",
         todayLongcount: "今日長紀曆：",
         todayCholqij: "今日 Cholqʼij（Tzolkʼin）日（Kʼicheʼ 名稱）：",
         todayHaab: "今日 Haabʼ 日（猶加敦語名稱）：",
@@ -842,6 +922,7 @@
       setText("languageLabel", t("language"));
       setText("pageTitle", t("pageTitle"));
       setText("diaryLabel", t("diaryFormat"));
+      setText("todayMayanNumeralsLabel", t("todayMayanNumerals"));
       setText("todayLongcountLabel", t("todayLongcount"));
       setText("todayCholqijLabel", t("todayCholqij"));
       setText("todayHaabLabel", t("todayHaab"));
@@ -853,6 +934,7 @@
       setText("convertButton", t("convert"));
       setText("convertedDateTitle", t("convertedDate"));
       setText("resultDiaryLabel", t("diaryFormat"));
+      setText("resultMayanNumeralsLabel", t("mayanNumeralsLabel"));
       setText("resultLongcountLabel", t("longcountLabel"));
       setText("resultCholqijLabel", t("cholqijLabel"));
       setText("resultHaabLabel", t("haabLabel"));
@@ -1032,6 +1114,11 @@
         jdn,
         greg,
         b, k, t, u, kin,
+        cholqijNumber: tz.number,
+        cholqijName: tz.name,
+        haabDay: ha.day,
+        haabMonth: ha.month,
+        lordNumber: Number(lord.slice(1)),
         lcNums,
         longCount,
         cholqijFull,
@@ -1086,6 +1173,56 @@
     }
 
     // ======= Rendering =======
+    function mayanNumeralCharacter(value) {
+      if (Number.isInteger(value) && value >= 0 && value <= 19) {
+        return String.fromCodePoint(0x1D2E0 + value);
+      }
+      // Unicode currently provides individual Mayan numeral characters only for 0–19.
+      return String(value);
+    }
+
+    function renderMayanCalendar(containerId, data) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const lordLabel = t("lordLabel").replace(/[:：]\s*$/, "");
+      const entries = [
+        { value: data.b, label: "Bʼakʼtun" },
+        { value: data.k, label: "Kʼatun" },
+        { value: data.t, label: "Tun" },
+        { value: data.u, label: "Winal" },
+        { value: data.kin, label: "Kin" },
+        { value: data.cholqijNumber, label: `${data.cholqijName} · Cholqʼij` },
+        { value: data.haabDay, label: `${data.haabMonth} · Haabʼ` },
+        { value: data.lordNumber, label: `${data.lord} · ${lordLabel}` }
+      ];
+
+      const fragment = document.createDocumentFragment();
+      for (const entry of entries) {
+        const cell = document.createElement("div");
+        cell.className = "mayan-calendar-cell";
+        cell.setAttribute("aria-label", `${entry.value} ${entry.label}`);
+
+        const numeral = document.createElement("span");
+        numeral.className = "mayan-number";
+        if (!Number.isInteger(entry.value) || entry.value < 0 || entry.value > 19) {
+          numeral.classList.add("fallback-number");
+        }
+        numeral.setAttribute("aria-hidden", "true");
+        numeral.textContent = mayanNumeralCharacter(entry.value);
+
+        const label = document.createElement("span");
+        label.className = "mayan-calendar-label";
+        label.setAttribute("aria-hidden", "true");
+        label.textContent = entry.label;
+
+        cell.append(numeral, label);
+        fragment.append(cell);
+      }
+
+      container.replaceChildren(fragment);
+    }
+
     function renderToday() {
       const { y, m, d } = todayLocalYMD();
       const data = calendarDataFromJDN(gregorianToJDN(y, m, d));
@@ -1095,6 +1232,7 @@
       document.getElementById("haab").innerText = data.haabFull;
       document.getElementById("lord").innerText = data.lord;
       document.getElementById("diary").innerText = data.diary;
+      renderMayanCalendar("todayMayanNumerals", data);
 
       const mode = document.getElementById("haabMode").value;
       document.getElementById("calculationNote").innerText = mode === "standard"
@@ -1109,6 +1247,7 @@
       document.getElementById("resultHaab").innerText = data.haabFull;
       document.getElementById("resultLord").innerText = data.lord;
       document.getElementById("resultGregorian").innerText = data.greg.iso;
+      renderMayanCalendar("resultMayanNumerals", data);
       document.getElementById("conversionResult").hidden = false;
     }
 
