@@ -405,7 +405,7 @@ The Ajqʼij also shared an excerpt from:
 
 > *Concepción Maya del Tiempo y sus Ciclos: Texto para Docentes*, by Virginia Ajxup Pelicó, Pedro Eligio Ajxup Poroj, and Juan Zapil Xivir.
 
-The photographed passage describes a 13-day Gran Wayebʼ observed at the completion of each 52-year block. The publication year, publisher, edition, and page number should be added when the full bibliographic information becomes available.
+The photographed passage describes a 13-day Gran Wayebʼ observed at the completion of each 52-year block. The publication year, publisher, edition, and page number will be added when the full bibliographic information becomes available.
 
 The code extrapolates the supplied rule mathematically. This should not be read as a claim that the model represents every Maya community, language, historical period, or scholarly interpretation.
 
