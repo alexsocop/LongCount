@@ -247,6 +247,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      box-sizing: border-box;
+      padding-right: 32px;
       gap: 8px;
       direction: ltr;
       width: 100%;
@@ -274,7 +276,7 @@
     }
     .fallback-number { overflow-wrap: anywhere; max-width: 100%; }
     @media (max-width: 480px) {
-      .calendar-visual { gap: 3px; min-height: 80px; }
+      .calendar-visual { gap: 3px; min-height: 80px; padding-right: 16px; }
       .numeral-slot { width: 50px; height: 76px; flex-basis: 50px; }
       .calendar-glyph { width: 50px; height: 76px; flex-basis: 50px; }
       .calendar-visual .mayan-number { font-size: 56px; }
